@@ -1,15 +1,13 @@
 from contextlib import asynccontextmanager
-from src.db.table import create_tables
+from src.db.tables import create_tables
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
-from src.evolution.client import EvolutionAPI
+from src.evo.client import EvolutionAPI
 from src.agent.audio_transcription import audio_transcription
 from src.db.crud import PostgreSQL
 # Imports do seu projeto
 from src.redis.buffer import adicionar_ao_buffer, iniciar_ouvinte_background
 from src.redis.rq import enqueue_agent_processing
-import requests
-import base64
 # ============================================================================
 # FUNÇÃO QUE PROCESSA AS MENSAGENS AGRUPADAS (Callback do ouvinte)
 # ============================================================================
@@ -115,6 +113,13 @@ async def webhook(request: Request):
         data = await request.json()
         messageType = data['data'].get('messageType')
 
+        key = data['data'].get('key', {})
+        from_me = key.get('fromMe', False)
+
+        # ========== EXTRAI O NÚMERO DO USUÁRIO ==========
+        remoteJid = key.get('remoteJid')
+        number = remoteJid.split('@')[0]
+
         if data:
             # ========== EXTRAI O TIPO DE MENSAGEM ==========
             if messageType == 'conversation':
@@ -142,14 +147,45 @@ async def webhook(request: Request):
                 # Tipo de mensagem não suportado
                 message = None
 
-            # ========== EXTRAI O NÚMERO DO USUÁRIO ==========
-            remoteJid = data['data']['key'].get('remoteJid')
-            number = remoteJid.split('@')[0]
+            # ======================================================
+            # 🔒 BLOQUEIO: MENSAGEM ENVIADA PELO PRÓPRIO SISTEMA
+            # ======================================================
+            if from_me:
+                print('🤖 Mensagem enviada pela IA/Humano. Salvando e ignorando fluxo.')
 
-            # ========== ADICIONA AO BUFFER ==========
+                PostgreSQL.save_message(
+                    session_id=number,
+                    sender='human',  
+                    message={'type': 'human', 'content': message}
+                )
+
+                return JSONResponse(
+                    content={'status': 'mensagem da IA salva'},
+                    status_code=200
+                )
+
             print(f'📲 Mensagem de: {number}')
             print(f'💬 Conteúdo: {message}')
 
+            # ========== GATEWAY: BLOQUEIO DA IA ==========
+            user = PostgreSQL.get_user_by_number(number)
+
+            if user and user.get("require_human") is True:
+                print(f'🚫 IA bloqueada para {number} (humano no controle)')
+
+                # Salva mensagem normalmente
+                PostgreSQL.save_message(
+                    session_id=number,
+                    sender='user',
+                    message={'type': 'user', 'content': message}
+                )
+
+                return JSONResponse(
+                    content={'status': 'encaminhado_para_humano'},
+                    status_code=200
+                )
+
+            # ========== ADICIONA AO BUFFER ==========
             adicionar_ao_buffer(number, message)
 
             print(f'➕ Mensagem adicionada ao buffer para {number}\n')

@@ -35,6 +35,7 @@ jiter==0.12.0
 jsonpatch==1.33
 jsonpointer==3.0.0
 langchain==1.2.0
+langchain-cerebras==0.8.2
 langchain-core==1.2.2
 langchain-groq==1.1.1
 langchain-openai==1.1.6

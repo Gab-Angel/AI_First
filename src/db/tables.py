@@ -14,46 +14,121 @@ def create_tables(retries=10, delay=3):
             CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
             CREATE TABLE IF NOT EXISTS users (
-                );
+                phone_number VARCHAR(20) PRIMARY KEY,
+                complete_name VARCHAR(100),
+                require_human BOOLEAN NOT NULL DEFAULT FALSE,
+                complete_register BOOLEAN NOT NULL DEFAULT FALSE,
+                origin_contact TEXT NOT NULL DEFAULT 'whatsapp',
+                metadata JSONB DEFAULT '{}'::jsonb,
+                created_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'America/Sao_Paulo'),
+                updated_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'America/Sao_Paulo')
+            );
 
             CREATE TABLE IF NOT EXISTS chat (
-                );
+                id SERIAL PRIMARY KEY,
+                session_id VARCHAR(20),
+                sender VARCHAR(20)
+                    CHECK (sender IN ('human', 'ai', 'user')),
+                agent_name VARCHAR(50),
+                message JSONB NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'America/Sao_Paulo')
+            );
 
             CREATE TABLE IF NOT EXISTS rag_embeddings (
-                );
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                content TEXT NOT NULL,
+                category VARCHAR(100),
+                embedding VECTOR(1536),
+                created_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'America/Sao_Paulo')
+            );
 
             CREATE INDEX IF NOT EXISTS rag_embedding_idx
             ON rag_embeddings
             USING hnsw (embedding vector_cosine_ops);
 
-            CREATE INDEX IF NOT EXISTS rag_categoria_idx
-            ON rag_embeddings (categoria);
+            CREATE INDEX IF NOT EXISTS rag_category_idx
+            ON rag_embeddings (category);
 
             CREATE TABLE IF NOT EXISTS files (
-                );
+                id SERIAL PRIMARY KEY,
+                category VARCHAR(100) NOT NULL,
+                fileName VARCHAR(255) NOT NULL,
+                mediaType VARCHAR(20) NOT NULL,
+                path VARCHAR NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'America/Sao_Paulo')
+            );
 
             CREATE TABLE IF NOT EXISTS calendar_events (
-                );
+                id SERIAL PRIMARY KEY,
+                user_number VARCHAR(20) NOT NULL,
+                event_id VARCHAR(255) NOT NULL UNIQUE,
+                summary VARCHAR(500),
+                dr_responsible VARCHAR(100),
+                procedure VARCHAR(100),
+                description VARCHAR(100),
+                status VARCHAR(20)
+                    CHECK (status IN ('pending', 'confirmed', 'canceled')),
+                start_time TIMESTAMPTZ,
+                end_time TIMESTAMPTZ,
+                created_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'America/Sao_Paulo')
+            );
 
             CREATE TABLE IF NOT EXISTS token_usage (
-                );
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                phone_number TEXT NOT NULL,
+                message_id TEXT,
+                input_tokens INTEGER NOT NULL,
+                output_tokens INTEGER NOT NULL,
+                total_tokens INTEGER NOT NULL,
+                model_name TEXT,
+                provider TEXT,
+                created_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'America/Sao_Paulo')
+            );
+
+            CREATE TABLE IF NOT EXISTS doctor_rules (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                name VARCHAR(150) NOT NULL,
+                active BOOLEAN NOT NULL DEFAULT TRUE,
+                procedures JSONB NOT NULL,
+                duration INTEGER NOT NULL, 
+                available_weekdays JSONB NOT NULL,
+                start_time TIME NOT NULL,
+                end_time TIME NOT NULL,
+                insurances JSONB,
+                restrictions JSONB,
+                created_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'America/Sao_Paulo'),
+                updated_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'America/Sao_Paulo')
+            );
+
+            CREATE OR REPLACE FUNCTION update_updated_at_column()
+            RETURNS TRIGGER AS $$
+            BEGIN
+                NEW.updated_at = NOW() AT TIME ZONE 'America/Sao_Paulo';
+                RETURN NEW;
+            END;
+            $$ language 'plpgsql';
+
+            CREATE TRIGGER update_doctor_rules_updated_at
+            BEFORE UPDATE ON doctor_rules
+            FOR EACH ROW
+            EXECUTE PROCEDURE update_updated_at_column();
 
 
             CREATE INDEX IF NOT EXISTS calendar_events_session_idx
-            ON calendar_events (session_id);
+            ON calendar_events (user_number);
 
             CREATE INDEX IF NOT EXISTS calendar_events_event_idx
             ON calendar_events (event_id);
 
             
             CREATE INDEX IF NOT EXISTS arquivos_categoria_idx
-            ON arquivos (categoria);
+            ON files (category);
 
             CREATE INDEX IF NOT EXISTS arquivos_mediaType_idx
-            ON arquivos (mediaType);
+            ON files (mediaType);
 
             CREATE INDEX IF NOT EXISTS arquivos_fileName_idx
-            ON arquivos (fileName);
+            ON files (fileName);
             """
 
             cursor.execute(sql)

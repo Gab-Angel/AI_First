@@ -149,9 +149,34 @@ class PostgreSQL:
             cursor.close()
             conn.close()
 
+    @staticmethod
+    def update_require_human(phone_number: str):
+        conn = get_vector_conn()
+        cursor = conn.cursor()
+
+        try:
+            status = True
+            cursor.execute(
+                """
+                UPDATE users
+                SET require_human = %s
+                WHERE phone_number = %s
+                """,
+                (status, phone_number),
+            )
+
+            conn.commit()
+
+        except Exception as e:
+            conn.rollback()
+            print(f'❌ Erro ao atualizar require_human: {e}')
+
+        finally:
+            cursor.close()
+            conn.close()
 
     @staticmethod
-    def save_message(session_id: str, message: dict):
+    def save_message(session_id: str, sender: str, message: dict, agent_name: str = None):
 
         conn = get_vector_conn()
         cursor = conn.cursor()
@@ -159,10 +184,10 @@ class PostgreSQL:
         try:
             cursor.execute(
                 """
-                INSERT INTO chat_ia (session_id, message)
-                VALUES (%s, %s)
+                INSERT INTO chat (session_id, sender, agent_name, message)
+                VALUES (%s, %s, %s, %s)
             """,
-                (session_id, json.dumps(message)),
+                (session_id, sender, agent_name, json.dumps(message)),
             )
 
             conn.commit()
@@ -235,6 +260,8 @@ class PostgreSQL:
             cursor.close()
             conn.close()
 
+
+    # ================================================================
     @staticmethod
     def get_file(categoria: str):
 
@@ -244,8 +271,8 @@ class PostgreSQL:
 
             query = """
                 SELECT categoria, fileName, mediaType, caminho
-                FROM arquivos
-                WHERE categoria ILIKE %s
+                FROM files
+                WHERE category ILIKE %s
                 LIMIT 1;
             """
 
@@ -260,6 +287,7 @@ class PostgreSQL:
                 cursor.close()
             if conn:
                 conn.close()
+    # ================================================================
 
     @staticmethod
     def save_calendar_event(
@@ -386,6 +414,7 @@ class PostgreSQL:
             cursor.close()
             conn.close()
 
+    # ================================================================
     @staticmethod
     def get_responsavel_event(event_id: str):
         conn = get_vector_conn()
@@ -410,6 +439,7 @@ class PostgreSQL:
         finally:
             cursor.close()
             conn.close()
+    # ================================================================
 
     @staticmethod
     def save_tokens(

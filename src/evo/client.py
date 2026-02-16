@@ -82,7 +82,7 @@ class EvolutionAPI:
 
         return self._post(endpoint='/message/sendMedia', payload=payload)
 
-
+    # ====================================================
     def notificar_admin_agendamento(self, paciente_numero: str, procedimento: str, descricao: str, event_id: str, data_inicio: str, data_fim: str):
         
         admin_rosevania = os.getenv('ADM_NUMBER_ROSEVANIA')
@@ -157,4 +157,36 @@ class EvolutionAPI:
             print(f"✅ Admin {admin_numero} notificado sobre agendamento")
         except Exception as e:
             print(f"❌ Erro ao notificar admin: {e}")
+    # ====================================================
+
+    def notify_human(self, phone_number: str, reason: str):
+
+        user = PostgreSQL.get_user_by_number(number=phone_number)
+        nome = user.get('nome_completo', 'Nome não cadastrado')
+
+        mensagem = f"""🔔 *Paciente precisando de atendimento*
+
+        👤 Paciente: {nome}
+        📞 Telefone: {phone_number}
+        🗣️ Motivo: {reason}
+
+        Entre em contato."""
+
+        admin_numero = os.getenv('ADM_NUMBER')
+
+        try:
+            payload = {
+                    'number': admin_numero,
+                    'text': mensagem,
+                    'delay': 2000,
+                    'presence': 'composing',
+                }
+
+            response = self._post(
+                endpoint='/message/sendText', payload=payload
+            )
+
+            print(f"✅ Admin {admin_numero} notificado sobre agendamento")
+        except Exception as e:
+            print(f"❌ Erro ao notificar admin: {e}")       
 
