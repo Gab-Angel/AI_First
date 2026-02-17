@@ -7,6 +7,7 @@ from src.evo.client import EvolutionAPI
 from src.agent.agents import llm
 from src.google_calendar.client_calendar import GoogleCalendarClient
 from src.db.crud import PostgreSQL
+from src.db.connection import get_vector_conn
 from src.scheduler.schedulers import create_scheduler_message, delete_scheduler_message
 from openai import OpenAI
 
@@ -46,7 +47,6 @@ class Tools:
                 nome_completo=nome_completo,
                 cpf=cpf,
                 convenio=convenio,
-                # REMOVIDO: cadastro_completo=False,
                 observacoes=observacoes,
             )
             return "Cadastro atualizado com sucesso."
@@ -127,27 +127,172 @@ class Tools:
         
         return f"Informações encontradas:\n\n{contexto}"
     
-    # ====================================================
     @tool(description="""
-        Busca procedimentos disponíveis.
+        Envia arquivo institucional ao paciente.
+        
+        Tipos: cardapio, localizacao, convenios, etc
+        """)
+    def enviar_arquivo(numero: str, tipo: str) -> str:
+        
+        file_info = PostgreSQL.get_file(categoria=tipo)
+        
+        if not file_info:
+            return f"Arquivo '{tipo}' não encontrado"
+        
+        # Envia
+        evo = EvolutionAPI()
+        evo.sender_file(
+            numero=numero,
+            media_type=file_info['mediaType'],
+            file_name=file_info['fileName'],
+            media=file_info['path']
+        )
+        
+        return f"Arquivo '{file_info['fileName']}' enviado"
+
+    @tool(description=
+          """
+        Lista doutores disponíveis para um procedimento específico.
+        
+        QUANDO USAR: Logo após paciente informar qual procedimento deseja.
         
         Args:
-            categoria: Filtra por categoria (profilaxia, restauracao, etc). Opcional.
-            procedimento_id: Retorna procedimento específico por ID. Opcional.
+            procedimento: Nome do procedimento (obrigatório) - ex: "limpeza", "canal", "clareamento"
+            convenio: Convênio do paciente (opcional) - ex: "unimed", "bradesco", "particular"
         
-        Exemplos:
-            - Sem args → retorna todos os procedimentos
-            - categoria="profilaxia" → lista todos de profilaxia
-            - procedimento_id="limpeza" → detalhes completos da limpeza
-            - categoria="profilaxia", procedimento_id="limpeza" → limpeza dentro de profilaxia
-        """)
-    def buscar_doutor():
-
+        Returns:
+            JSON com lista de doutores elegíveis (id e nome apenas)
         
-
-        pass
-    # ====================================================
-
+        Exemplo de retorno:
+        [
+            {"id": "uuid-123", "nome": "Doutor A"},
+            {"id": "uuid-456", "nome": "Doutor B"}
+        ]
+    """)
+    def listar_doutores_disponiveis(procedimento: str, convenio: str = None) -> str:
+        print("Ferramenta: =========== Listar Doutores Disponíveis ===========")
+        print(f"Procedimento: {procedimento}")
+        print(f"Convênio: {convenio or 'Não informado'}")
+        
+        try:
+            conn = get_vector_conn()
+            cursor = conn.cursor()
+            
+            # Query base
+            query = """
+                SELECT id, name
+                FROM doctor_rules
+                WHERE active = true
+                  AND procedures @> %s::jsonb
+            """
+            
+            params = [json.dumps([procedimento.lower()])]
+            
+            # Adiciona filtro de convênio se fornecido
+            if convenio:
+                query += " AND insurances @> %s::jsonb"
+                params.append(json.dumps([convenio.lower()]))
+            
+            cursor.execute(query, params)
+            doutores = cursor.fetchall()
+            
+            if not doutores:
+                return "Nenhum doutor disponível para este procedimento/convênio."
+            
+            # Formata resultado
+            resultado = [
+                {"id": str(dr['id']), "nome": dr['name']}
+                for dr in doutores
+            ]
+            
+            print(f"✅ Encontrados {len(resultado)} doutor(es)")
+            return json.dumps(resultado, ensure_ascii=False)
+            
+        except Exception as e:
+            print(f"❌ Erro ao listar doutores: {e}")
+            return f"Erro ao buscar doutores: {str(e)}"
+        
+        finally:
+            cursor.close()
+            conn.close()
+   
+    @tool(description="""
+        Busca detalhes completos de um doutor específico após escolha do paciente.
+        
+        QUANDO USAR: Após paciente escolher o doutor da lista.
+        
+        Args:
+            doutor_id: UUID do doutor escolhido (obrigatório)
+        
+        Returns:
+            JSON com todas as informações do doutor:
+            - id, nome, calendar_id
+            - procedimentos que atende
+            - duração padrão das consultas
+            - dias da semana que trabalha
+            - horário de início e fim
+            - convênios aceitos
+        
+        Exemplo de retorno:
+        {
+            "id": "uuid-123",
+            "nome": "Rosevânia",
+            "calendar_id": "primary@gmail.com",
+            "procedimentos": ["limpeza", "canal"],
+            "duracao_minutos": 60,
+            "dias_trabalho": [1,2,3,4,5],
+            "horarios": {
+                "manha": {"inicio": "08:00", "fim": "12:00"},
+                "tarde": {"inicio": "14:00", "fim": "18:00"}
+            },
+            "convenios": ["unimed", "bradesco"]
+        }
+    """)
+    def buscar_detalhes_doutor(doutor_id: str) -> str:
+        print("Ferramenta: =========== Buscar Detalhes do Doutor ===========")
+        print(f"Doutor ID: {doutor_id}")
+        
+        try:
+            conn = get_vector_conn()
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT 
+                    id, name, calendar_id, procedures, duration,
+                    available_weekdays, working_hours, 
+                    insurances, restrictions
+                FROM doctor_rules
+                WHERE id = %s AND active = true
+            """, (doutor_id,))
+            
+            doutor = cursor.fetchone()
+            
+            if not doutor:
+                return f"Doutor com ID {doutor_id} não encontrado ou inativo."
+            
+            # Formata resultado
+            resultado = {
+                "id": str(doutor['id']),
+                "nome": doutor['name'],
+                "calendar_id": doutor['calendar_id'],
+                "procedimentos": doutor['procedures'],
+                "duracao_minutos": doutor['duration'],
+                "dias_trabalho": doutor['available_weekdays'],
+                "horarios": doutor['working_hours'],
+                "convenios": doutor['insurances'],
+                "restricoes": doutor.get('restrictions')
+            }
+            
+            print(f"✅ Detalhes do doutor {doutor['name']} carregados")
+            return json.dumps(resultado, ensure_ascii=False)
+            
+        except Exception as e:
+            print(f"❌ Erro ao buscar detalhes do doutor: {e}")
+            return f"Erro ao buscar detalhes: {str(e)}"
+        
+        finally:
+            cursor.close()
+            conn.close()
     
     @tool(description="""
         Verifica se um horário específico está livre ou ocupado na agenda.
@@ -365,7 +510,8 @@ class Tools:
 
 
     tools_agendamento = [
-        buscar_doutor,
+        listar_doutores_disponiveis,
+        buscar_detalhes_doutor,
         verificar_agenda,
         agendar_consulta,
         cancelar_consulta
@@ -377,10 +523,10 @@ class Tools:
     ]
     
     tools_rag = [
-        buscar_rag
+        buscar_rag,
+        enviar_arquivo
     ]
 
-    
     tools = tools_recepcionista + tools_agendamento + tools_rag 
 
     tool_node = ToolNode(tools)

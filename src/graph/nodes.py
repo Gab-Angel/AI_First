@@ -114,7 +114,6 @@ class Nodes:
             print('✅ Decisão: Finalizar e responder.')
             return 'no'
         
-    # ====================================================
     @staticmethod
     def tool_node(state: State):
         print('🛠️ Executando ferramentas...')
@@ -124,8 +123,11 @@ class Nodes:
 
         response = Tools.tool_node.invoke({'messages': [last_message]})
 
-        # Verifica se alguma tool precisa ser salva
-        tools_to_save = [tc for tc in last_message.tool_calls if tc['name'] == 'buscar_procedimentos']
+        # Lista de tools que precisam ser salvas para dar contexto à IA
+        tools_to_save = [
+            tc for tc in last_message.tool_calls 
+            if tc['name'] in ['listar_doutores_disponiveis', 'buscar_detalhes_doutor']
+        ]
         
         if tools_to_save:
             # ✅ Salva a tool_call ANTES
@@ -139,7 +141,7 @@ class Nodes:
             for i, tool_msg in enumerate(response['messages']):
                 tool_call = last_message.tool_calls[i]
                 
-                if tool_call['name'] == 'buscar_procedimentos':
+                if tool_call['name'] in ['listar_doutores_disponiveis', 'buscar_detalhes_doutor']:
                     tool_result_payload = {
                         'type': 'tool',
                         'content': tool_msg.content,
@@ -148,8 +150,6 @@ class Nodes:
                     PostgreSQL.save_message(session_id=number, message=tool_result_payload)
 
         return {'messages': [last_message] + response['messages']}
-        # ====================================================
-    # ====================================================
 
     @staticmethod
     def node_agent_orquestrador(state: State):
@@ -190,6 +190,7 @@ class Nodes:
             get_history=PostgreSQL.get_historico,
         )
     
+    @staticmethod
     def node_chamar_humano(state: State):
         print(" =========== Encaminhando para Humano ===========")
 

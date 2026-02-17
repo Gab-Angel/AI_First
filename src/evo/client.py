@@ -31,34 +31,47 @@ class EvolutionAPI:
         return response.json()
 
     def sender_text(self, number: str, text: str) -> list[dict]:
-
-        texto = text.replace('\n\n', ' ').replace('\n', ' ').strip()
-
-        if '.' in texto:
-            partes = texto.split('.')
-        elif '!' in texto:
-            partes = texto.split('!')
-        else:
-            partes = [texto]
-
-        partes = [p.strip() for p in partes if p.strip()]
-
+        
+        # Remove apenas espaços em branco excessivos, mantém \n
+        texto = text.strip()
+        
+        # Divide por parágrafos (blocos separados por \n\n)
+        paragrafos = [p.strip() for p in texto.split('\n\n') if p.strip()]
+        
         responses = []
-
-        for parte in partes:
-            payload = {
-                'number': number,
-                'text': parte,
-                'delay': 1000,
-                'presence': 'composing',
-            }
-
-            response = self._post(
-                endpoint='/message/sendText', payload=payload
-            )
-
-            responses.append(response)
-
+        
+        for paragrafo in paragrafos:
+            # Se parágrafo > 300 chars, quebra em frases
+            if len(paragrafo) > 300:
+                # Split inteligente: só quebra após ., !, ? seguidos de espaço
+                import re
+                frases = re.split(r'(?<=[.!?])\s+', paragrafo)
+                
+                for frase in frases:
+                    if not frase.strip():
+                        continue
+                        
+                    payload = {
+                        'number': number,
+                        'text': frase.strip(),
+                        'delay': min(len(frase) * 30, 3000),  # Simula digitação (max 3s)
+                        'presence': 'composing',
+                    }
+                    
+                    response = self._post(endpoint='/message/sendText', payload=payload)
+                    responses.append(response)
+            else:
+                # Parágrafo curto: envia inteiro
+                payload = {
+                    'number': number,
+                    'text': paragrafo,
+                    'delay': min(len(paragrafo) * 30, 3000),
+                    'presence': 'composing',
+                }
+                
+                response = self._post(endpoint='/message/sendText', payload=payload)
+                responses.append(response)
+        
         return responses
 
     def sender_file(

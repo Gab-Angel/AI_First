@@ -85,15 +85,15 @@ def create_tables(retries=10, delay=3):
                 created_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'America/Sao_Paulo')
             );
 
-            CREATE TABLE IF NOT EXISTS doctor_rules (
+            CREATE TABLE doctor_rules (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 name VARCHAR(150) NOT NULL,
+                calendar_id VARCHAR(255) NOT NULL,
                 active BOOLEAN NOT NULL DEFAULT TRUE,
                 procedures JSONB NOT NULL,
                 duration INTEGER NOT NULL, 
                 available_weekdays JSONB NOT NULL,
-                start_time TIME NOT NULL,
-                end_time TIME NOT NULL,
+                working_hours JSONB NOT NULL,  
                 insurances JSONB,
                 restrictions JSONB,
                 created_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'America/Sao_Paulo'),

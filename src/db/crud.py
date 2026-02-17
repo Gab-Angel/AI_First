@@ -260,8 +260,6 @@ class PostgreSQL:
             cursor.close()
             conn.close()
 
-
-    # ================================================================
     @staticmethod
     def get_file(categoria: str):
 
@@ -270,7 +268,7 @@ class PostgreSQL:
             cursor = conn.cursor()
 
             query = """
-                SELECT categoria, fileName, mediaType, caminho
+                SELECT category, fileName, mediaType, path
                 FROM files
                 WHERE category ILIKE %s
                 LIMIT 1;
@@ -287,7 +285,6 @@ class PostgreSQL:
                 cursor.close()
             if conn:
                 conn.close()
-    # ================================================================
 
     @staticmethod
     def save_calendar_event(

@@ -72,7 +72,7 @@ workflow.add_edge('tool_node_orquestrador', 'agente_orquestrador')
 workflow.add_edge('tool_node_rag', 'agente_rag')
 workflow.add_edge('tool_node_agendamento', 'agente_agendamento')
 
-workflow.add_node('chamar_humano', 'sender_message')
+workflow.add_edge('chamar_humano', 'sender_message')
 workflow.add_edge('sender_message', 'save_msg_ai')
 workflow.add_edge('save_msg_ai', END)
 
