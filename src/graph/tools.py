@@ -377,12 +377,8 @@ class Tools:
                 calendar_id=calendar_id,
                 description=description
             )
-            calendar_id_rosevania = os.getenv('CALENDAR_ID_ROSEVANIA')
 
-            if calendar_id == calendar_id_rosevania:
-                dr_responsável = 'Rosevânia'
-            else:
-                dr_responsável = "Jorge Felipe"
+            doutor = PostgreSQL.get_doctor_for_id(calendar_id=calendar_id)
 
 
             PostgreSQL.save_calendar_event(
@@ -390,7 +386,7 @@ class Tools:
                 event_id=evento['id'],
                 summary=evento['summary'],
                 procedimento=procedimento,
-                dr_responsavel=dr_responsável,
+                dr_responsavel=doutor['name'],
                 start_time=evento['start'],
                 end_time=evento['end'],
                 description=description
@@ -401,7 +397,7 @@ class Tools:
                 paciente_numero=number,
                 procedimento=procedimento,
                 descricao=description,
-                event_id=evento['id'],
+                doctor_number=doutor['doctor_number'],
                 data_inicio=evento['start'],
                 data_fim=evento['end']
             )

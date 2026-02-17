@@ -88,6 +88,7 @@ def create_tables(retries=10, delay=3):
             CREATE TABLE doctor_rules (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 name VARCHAR(150) NOT NULL,
+                doctor_number VARCHAR(13),
                 calendar_id VARCHAR(255) NOT NULL,
                 active BOOLEAN NOT NULL DEFAULT TRUE,
                 procedures JSONB NOT NULL,

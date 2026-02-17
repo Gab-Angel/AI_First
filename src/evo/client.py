@@ -95,35 +95,30 @@ class EvolutionAPI:
 
         return self._post(endpoint='/message/sendMedia', payload=payload)
 
-    # ====================================================
-    def notificar_admin_agendamento(self, paciente_numero: str, procedimento: str, descricao: str, event_id: str, data_inicio: str, data_fim: str):
-        
-        admin_rosevania = os.getenv('ADM_NUMBER_ROSEVANIA')
-        admin_felipe = os.getenv('ADM_NUMBER_FELIPE')
-
-        if not admin_rosevania and admin_felipe:
-            print("⚠️ ADMs não configurado no .env")
-            return
+    def notificar_admin_agendamento(self, paciente_numero: str, procedimento: str, descricao: str, doctor_number: str, data_inicio: str, data_fim: str):
         
         # Busca dados do paciente
         paciente = PostgreSQL.get_user_by_number(paciente_numero)
         
         if paciente:
             nome = paciente.get('nome_completo', 'Nome não cadastrado')
-            convenio = paciente['observacoes']['convenio_tipo']
-            documento = paciente['observacoes']['documento']
+            observacoes = paciente.get('observacoes') or {}
+            convenio = observacoes.get('convenio_tipo', 'Não informado')
+            documento = observacoes.get('documento', 'Sem documento')
         else:
             nome = 'Não cadastrado'
-
-        if documento == "cpf_informado":
-            cpf = paciente.get('cpf')
-            documento = f'CPF -> {cpf}'
-
-        elif documento == 'carteirinha_enviada':
-            documento = "Paciente enviou a carteirinha"
-
-        else:
+            convenio = 'Não informado'
             documento = 'Sem documento'
+
+            if documento == "cpf_informado":
+                cpf = paciente.get('cpf')
+                documento = f'CPF -> {cpf}'
+
+            elif documento == 'carteirinha_enviada':
+                documento = "Paciente enviou a carteirinha"
+
+            else:
+                documento = 'Sem documento'
 
         # Extrai data e hora
         data = data_inicio[:10]  # YYYY-MM-DD
@@ -147,16 +142,8 @@ class EvolutionAPI:
         # Envia notificação
         try:
 
-            get_event = PostgreSQL.get_responsavel_event(event_id=event_id)
-            responsavel = get_event['dr_responsavel']
-
-            if responsavel == "Rosevânia":
-                admin_numero = admin_rosevania
-            else:
-                admin_numero = admin_felipe
-
             payload = {
-                'number': admin_numero,
+                'number': doctor_number,
                 'text': mensagem,
                 'delay': 2000,
                 'presence': 'composing',
@@ -167,10 +154,9 @@ class EvolutionAPI:
             )
             
         
-            print(f"✅ Admin {admin_numero} notificado sobre agendamento")
+            print(f"✅ Doutor de numero: {doctor_number} notificado sobre agendamento")
         except Exception as e:
             print(f"❌ Erro ao notificar admin: {e}")
-    # ====================================================
 
     def notify_human(self, phone_number: str, reason: str):
 

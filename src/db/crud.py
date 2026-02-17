@@ -411,19 +411,18 @@ class PostgreSQL:
             cursor.close()
             conn.close()
 
-    # ================================================================
     @staticmethod
-    def get_responsavel_event(event_id: str):
+    def get_doctor_for_id(calendar_id: str):
         conn = get_vector_conn()
         cursor = conn.cursor()
         try:
             cursor.execute(
                 """
-                SELECT dr_responsavel
-                FROM calendar_events
-                WHERE event_id = %s
+                SELECT name, doctor_number
+                FROM doctor_rules
+                WHERE calendar_id = %s
             """,
-                (event_id,),
+                (calendar_id,),
             )
 
             row = cursor.fetchone()
@@ -436,7 +435,6 @@ class PostgreSQL:
         finally:
             cursor.close()
             conn.close()
-    # ================================================================
 
     @staticmethod
     def save_tokens(
