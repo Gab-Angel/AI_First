@@ -156,7 +156,7 @@ async def webhook(request: Request):
                 PostgreSQL.save_message(
                     session_id=number,
                     sender='human',  
-                    message={'type': 'human', 'content': message}
+                    message={'type': 'ai', 'content': message}
                 )
 
                 return JSONResponse(

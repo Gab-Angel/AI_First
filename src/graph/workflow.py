@@ -17,7 +17,6 @@ workflow.add_node('agente_orquestrador', Nodes.node_agent_orquestrador)
 workflow.add_node('agente_rag', Nodes.node_agent_rag)
 workflow.add_node('agente_agendamento', Nodes.node_agent_agendamento)
 workflow.add_node('tool_node_recepcionista', Nodes.tool_node)
-workflow.add_node('tool_node_orquestrador', Nodes.tool_node)
 workflow.add_node('tool_node_rag', Nodes.tool_node)
 workflow.add_node('tool_node_agendamento', Nodes.tool_node)
 workflow.add_node('chamar_humano', Nodes.node_chamar_humano)
@@ -68,7 +67,6 @@ workflow.add_conditional_edges(
 )
 
 workflow.add_edge('tool_node_recepcionista', 'agente_recepcionista')
-workflow.add_edge('tool_node_orquestrador', 'agente_orquestrador')
 workflow.add_edge('tool_node_rag', 'agente_rag')
 workflow.add_edge('tool_node_agendamento', 'agente_agendamento')
 

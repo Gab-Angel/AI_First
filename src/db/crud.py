@@ -212,7 +212,7 @@ class PostgreSQL:
                 SELECT message
                 FROM (
                     SELECT message, created_at
-                    FROM chat_ia
+                    FROM chat
                     WHERE session_id = %s
                     ORDER BY created_at DESC
                     LIMIT 20
@@ -452,7 +452,7 @@ class PostgreSQL:
         try:
             cursor.execute(
                 """
-                INSERT INTO agent_token_usage (
+                INSERT INTO token_usage (
                     phone_number,
                     message_id,
                     input_tokens,

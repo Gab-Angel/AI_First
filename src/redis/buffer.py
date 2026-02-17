@@ -8,8 +8,6 @@ from src.redis.client_redis import redis_client
 
 load_dotenv()
 
-# --- Configurações ---
-redis_client = redis_client
 
 BUFFER_TIMEOUT = 1  # segundos
 

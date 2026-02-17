@@ -12,8 +12,6 @@ base_url_evo = os.getenv('BASE_URL_EVO')
 instance_token = os.getenv('API_KEY_EVO')
 instance_name = os.getenv('INSTANCE_NAME')
 
-url_sendText = f'{base_url_evo}/message/sendText/{instance_name}'
-url_sendMedia = f'{base_url_evo}/message/sendMedia/{instance_name}'
 headers = {'Content-Type': 'application/json', 'apikey': instance_token}
 
 
@@ -110,15 +108,15 @@ class EvolutionAPI:
             convenio = 'Não informado'
             documento = 'Sem documento'
 
-            if documento == "cpf_informado":
-                cpf = paciente.get('cpf')
-                documento = f'CPF -> {cpf}'
+        if documento == "cpf_informado":
+            cpf = paciente.get('cpf')
+            documento = f'CPF -> {cpf}'
 
-            elif documento == 'carteirinha_enviada':
-                documento = "Paciente enviou a carteirinha"
+        elif documento == 'carteirinha_enviada':
+            documento = "Paciente enviou a carteirinha"
 
-            else:
-                documento = 'Sem documento'
+        else:
+            documento = 'Sem documento'
 
         # Extrai data e hora
         data = data_inicio[:10]  # YYYY-MM-DD

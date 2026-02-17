@@ -69,7 +69,7 @@ class Nodes:
             ultima = messages[-1]
             conteudo = ultima.content
 
-            message_payload = {'type': 'user', 'content': conteudo}
+            message_payload = {'type': 'human', 'content': conteudo}
 
             PostgreSQL.save_message(session_id=number, sender='user', message=message_payload)
 
@@ -199,8 +199,10 @@ class Nodes:
 
         try:
             PostgreSQL.update_require_human(phone_number=numero)
+            
+            evo = EvolutionAPI()
 
-            EvolutionAPI.notify_human(
+            evo.notify_human(
                 phone_number=numero,
                 reason=motivo
             )
