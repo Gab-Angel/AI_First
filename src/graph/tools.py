@@ -178,17 +178,18 @@ class Tools:
             conn = get_vector_conn()
             cursor = conn.cursor()
             
-            # Query base
             query = """
                 SELECT id, name
                 FROM doctor_rules
                 WHERE active = true
-                  AND procedures @> %s::jsonb
+                  AND EXISTS (
+                    SELECT 1 FROM jsonb_array_elements(procedures) AS p
+                    WHERE lower(p->>'nome') = lower(%s)
+                  )
             """
             
-            params = [json.dumps([procedimento.lower()])]
+            params = [procedimento]
             
-            # Adiciona filtro de convênio se fornecido
             if convenio:
                 query += " AND insurances @> %s::jsonb"
                 params.append(json.dumps([convenio.lower()]))
@@ -199,7 +200,6 @@ class Tools:
             if not doutores:
                 return "Nenhum doutor disponível para este procedimento/convênio."
             
-            # Formata resultado
             resultado = [
                 {"id": str(dr['id']), "nome": dr['name']}
                 for dr in doutores
@@ -385,8 +385,8 @@ class Tools:
                 session_id=number,
                 event_id=evento['id'],
                 summary=evento['summary'],
-                procedimento=procedimento,
-                dr_responsavel=doutor['name'],
+                procedure=procedimento,
+                dr_responsible=doutor['name'],
                 start_time=evento['start'],
                 end_time=evento['end'],
                 description=description
@@ -449,7 +449,7 @@ class Tools:
         print(f"[CANCELAR] number={number}, data={data}, hora={hora}")
         print("Ferramenta: =========== Cancelar Consulta ===========")
         try:
-            eventos = PostgreSQL.get_calendar_events(session_id=number)
+            eventos = PostgreSQL.get_calendar_events(user_number=number)
             print(f"[CANCELAR] Total eventos: {len(eventos)}")
             
             # Filtra por data (converte datetime para string)
@@ -487,7 +487,7 @@ class Tools:
             
             # Deleta
             calendar_client.deletar(event_id=evento['event_id'], calendar_id=calendar_id)
-            PostgreSQL.delete_calendar_event(session_id=number, event_id=evento['event_id'])
+            PostgreSQL.delete_calendar_event(user_number=number, event_id=evento['event_id'])
             
             delete_scheduler = delete_scheduler_message(
                 event_id_scheduler=evento['event_id']

@@ -94,37 +94,32 @@ class EvolutionAPI:
         return self._post(endpoint='/message/sendMedia', payload=payload)
 
     def notificar_admin_agendamento(self, paciente_numero: str, procedimento: str, descricao: str, doctor_number: str, data_inicio: str, data_fim: str):
-        
-        # Busca dados do paciente
-        paciente = PostgreSQL.get_user_by_number(paciente_numero)
-        
-        if paciente:
-            nome = paciente.get('nome_completo', 'Nome não cadastrado')
-            observacoes = paciente.get('observacoes') or {}
-            convenio = observacoes.get('convenio_tipo', 'Não informado')
-            documento = observacoes.get('documento', 'Sem documento')
-        else:
-            nome = 'Não cadastrado'
-            convenio = 'Não informado'
-            documento = 'Sem documento'
+            
+            paciente = PostgreSQL.get_user_by_number(paciente_numero)
+            
+            if paciente:
+                nome = paciente.get('complete_name', 'Nome não cadastrado')
+                metadata = paciente.get('metadata') or {}
+                convenio = metadata.get('convenio_tipo', 'Não informado')
+                documento = metadata.get('documento', 'Sem documento')
+            else:
+                nome = 'Não cadastrado'
+                convenio = 'Não informado'
+                documento = 'Sem documento'
 
-        if documento == "cpf_informado":
-            cpf = paciente.get('cpf')
-            documento = f'CPF -> {cpf}'
+            if documento == "cpf_informado":
+                cpf = paciente.get('cpf')
+                documento = f'CPF -> {cpf}'
+            elif documento == 'carteirinha_enviada':
+                documento = "Paciente enviou a carteirinha"
+            else:
+                documento = 'Sem documento'
 
-        elif documento == 'carteirinha_enviada':
-            documento = "Paciente enviou a carteirinha"
-
-        else:
-            documento = 'Sem documento'
-
-        # Extrai data e hora
-        data = data_inicio[:10]  # YYYY-MM-DD
-        hora_inicio = data_inicio[11:16]  # HH:MM
-        hora_fim = data_fim[11:16]  # HH:MM
-        
-        # Formata mensagem
-        mensagem = f"""🔔 *Novo Agendamento Realizado*
+            data = data_inicio[:10]
+            hora_inicio = data_inicio[11:16]
+            hora_fim = data_fim[11:16]
+            
+            mensagem = f"""🔔 *Novo Agendamento Realizado*
 
     👤 Paciente: {nome}
     📞 Telefone: {paciente_numero}
@@ -136,25 +131,21 @@ class EvolutionAPI:
     Observações: {descricao}
 
     Verifique a agenda ou entre em contato."""
-        
-        # Envia notificação
-        try:
-
-            payload = {
-                'number': doctor_number,
-                'text': mensagem,
-                'delay': 2000,
-                'presence': 'composing',
-            }
-
-            response = self._post(
-                endpoint='/message/sendText', payload=payload
-            )
             
-        
-            print(f"✅ Doutor de numero: {doctor_number} notificado sobre agendamento")
-        except Exception as e:
-            print(f"❌ Erro ao notificar admin: {e}")
+            try:
+                payload = {
+                    'number': doctor_number,
+                    'text': mensagem,
+                    'delay': 2000,
+                    'presence': 'composing',
+                }
+
+                self._post(endpoint='/message/sendText', payload=payload)
+                
+                print(f"✅ Doutor de numero: {doctor_number} notificado sobre agendamento")
+
+            except Exception as e:
+                print(f"❌ Erro ao notificar admin: {e}")
 
     def notify_human(self, phone_number: str, reason: str):
 

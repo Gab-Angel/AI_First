@@ -38,14 +38,14 @@ class PostgreSQL:
         try:
             cursor.execute(
                 """
-                SELECT cadastro_completo
+                SELECT complete_register
                 FROM users
                 WHERE phone_number = %s
                 """,
                 (phone_number,),
             )
             result = cursor.fetchone()
-            return result['cadastro_completo'] if result else False
+            return result['complete_register'] if result else False
 
         except Exception as e:
             print(f'❌ Erro ao buscar status cadastro: {e}')
@@ -56,18 +56,18 @@ class PostgreSQL:
             conn.close()
 
     @staticmethod
-    def create_user(phone_number: str, origem_contato: str = 'whatsapp'):
+    def create_user(phone_number: str, origin_contact: str = 'whatsapp'):
         conn = get_vector_conn()
         cursor = conn.cursor()
 
         try:
             cursor.execute(
                 """
-                INSERT INTO users (phone_number, origem_contato)
+                INSERT INTO users (phone_number, origin_contact)
                 VALUES (%s, %s)
                 ON CONFLICT (phone_number) DO NOTHING
                 """,
-                (phone_number, origem_contato),
+                (phone_number, origin_contact),
             )
             conn.commit()
 
@@ -82,11 +82,11 @@ class PostgreSQL:
     @staticmethod
     def update_user(
         phone_number: str,
-        nome_completo: str | None = None,
+        complete_name: str | None = None,
         cpf: str | None = None,
         convenio: str | None = None,
-        cadastro_completo: str | None = None,
-        observacoes: dict | None = None,
+        complete_register: bool | None = None,
+        metadata: dict | None = None,
     ):
         conn = get_vector_conn()
         cursor = conn.cursor()
@@ -96,19 +96,19 @@ class PostgreSQL:
                 """
                 UPDATE users
                 SET
-                    nome_completo = COALESCE(%s, nome_completo),
+                    complete_name = COALESCE(%s, complete_name),
                     cpf = COALESCE(%s, cpf),
                     convenio = COALESCE(%s, convenio),
-                    cadastro_completo = COALESCE(%s, cadastro_completo),
-                    observacoes = COALESCE(%s, observacoes)
+                    complete_register = COALESCE(%s, complete_register),
+                    metadata = COALESCE(%s, metadata)
                 WHERE phone_number = %s
                 """,
                 (
-                    nome_completo,
+                    complete_name,
                     cpf,
                     convenio,
-                    cadastro_completo,
-                    json.dumps(observacoes) if observacoes else None,
+                    complete_register,
+                    json.dumps(metadata) if metadata else None,
                     phone_number,
                 ),
             )
@@ -129,14 +129,13 @@ class PostgreSQL:
         cursor = conn.cursor()
 
         try:
-            cadastro = True
             cursor.execute(
                 """
                 UPDATE users
-                SET cadastro_completo = %s
+                SET complete_register = %s
                 WHERE phone_number = %s
                 """,
-                (cadastro, phone_number),
+                (True, phone_number),
             )
 
             conn.commit()
@@ -155,14 +154,13 @@ class PostgreSQL:
         cursor = conn.cursor()
 
         try:
-            status = True
             cursor.execute(
                 """
                 UPDATE users
                 SET require_human = %s
                 WHERE phone_number = %s
                 """,
-                (status, phone_number),
+                (True, phone_number),
             )
 
             conn.commit()
@@ -237,7 +235,7 @@ class PostgreSQL:
                 elif msg['type'] == 'tool_calls':
                     historico.append(
                         AIMessage(
-                            content='',  # tool_calls não têm content
+                            content='',
                             tool_calls=msg['content']
                         )
                     )
@@ -288,11 +286,11 @@ class PostgreSQL:
 
     @staticmethod
     def save_calendar_event(
-        session_id: str,
+        user_number: str,
         event_id: str,
         summary: str,
-        dr_responsavel: str,
-        procedimento: str,
+        dr_responsible: str,
+        procedure: str,
         start_time: str,
         end_time: str,
         description: str = ""
@@ -303,19 +301,18 @@ class PostgreSQL:
         try:
             cursor.execute(
                 """
-                INSERT INTO calendar_events (session_id, event_id, summary, procedimento,  dr_responsavel, start_time, end_time, description)
+                INSERT INTO calendar_events (
+                    user_number, event_id, summary, procedure,
+                    dr_responsible, start_time, end_time, description
+                )
                 VALUES (
-                %s,
-                %s,
-                %s,
-                %s,
-                %s,
-                %s AT TIME ZONE 'America/Sao_Paulo',
-                %s AT TIME ZONE 'America/Sao_Paulo',
-                %s
-            )
-            """,
-                (session_id, event_id, summary, procedimento, dr_responsavel, start_time, end_time, description),
+                    %s, %s, %s, %s, %s,
+                    %s AT TIME ZONE 'America/Sao_Paulo',
+                    %s AT TIME ZONE 'America/Sao_Paulo',
+                    %s
+                )
+                """,
+                (user_number, event_id, summary, procedure, dr_responsible, start_time, end_time, description),
             )
             conn.commit()
             print(f'✅ Evento {event_id} salvo no banco')
@@ -329,7 +326,7 @@ class PostgreSQL:
             conn.close()
 
     @staticmethod
-    def get_calendar_events(session_id: str):
+    def get_calendar_events(user_number: str):
         conn = get_vector_conn()
         cursor = conn.cursor()
 
@@ -338,10 +335,10 @@ class PostgreSQL:
                 """
                 SELECT event_id, summary, start_time, end_time, description, created_at
                 FROM calendar_events
-                WHERE session_id = %s
+                WHERE user_number = %s
                 ORDER BY start_time ASC
-            """,
-                (session_id,),
+                """,
+                (user_number,),
             )
 
             rows = cursor.fetchall()
@@ -356,7 +353,7 @@ class PostgreSQL:
             conn.close()
 
     @staticmethod
-    def delete_calendar_event(session_id: str, event_id: str):
+    def delete_calendar_event(user_number: str, event_id: str):
         conn = get_vector_conn()
         cursor = conn.cursor()
 
@@ -364,12 +361,12 @@ class PostgreSQL:
             cursor.execute(
                 """
                 DELETE FROM calendar_events
-                WHERE session_id = %s AND event_id = %s
-            """,
-                (session_id, event_id),
+                WHERE user_number = %s AND event_id = %s
+                """,
+                (user_number, event_id),
             )
             conn.commit()
-            
+
             if cursor.rowcount > 0:
                 print(f'✅ Evento {event_id} deletado do banco')
                 return True
@@ -396,7 +393,7 @@ class PostgreSQL:
                 SELECT *
                 FROM users
                 WHERE phone_number = %s
-            """,
+                """,
                 (number,),
             )
 
@@ -421,7 +418,7 @@ class PostgreSQL:
                 SELECT name, doctor_number
                 FROM doctor_rules
                 WHERE calendar_id = %s
-            """,
+                """,
                 (calendar_id,),
             )
 
@@ -488,15 +485,15 @@ class PostgreSQL:
     def get_rag(query_embedding: list, categoria: str = None, limit: int = 3):
         conn = get_vector_conn()
         cursor = conn.cursor()
-        
+
         try:
             if categoria:
                 cursor.execute(
                     """
-                    SELECT content, categoria, 
+                    SELECT content, category,
                         embedding <=> %s::vector AS distance
                     FROM rag_embeddings
-                    WHERE categoria = %s
+                    WHERE category = %s
                     ORDER BY distance
                     LIMIT %s
                     """,
@@ -505,7 +502,7 @@ class PostgreSQL:
             else:
                 cursor.execute(
                     """
-                    SELECT content, categoria,
+                    SELECT content, category,
                         embedding <=> %s::vector AS distance
                     FROM rag_embeddings
                     ORDER BY distance
@@ -513,11 +510,9 @@ class PostgreSQL:
                     """,
                     (query_embedding, limit)
                 )
-            
+
             return cursor.fetchall()
-            
+
         finally:
             cursor.close()
             conn.close()
-
-
