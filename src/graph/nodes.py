@@ -4,6 +4,7 @@ from src.db.crud import PostgreSQL
 from src.evo.client import EvolutionAPI
 from src.graph.states import State
 from src.graph.tools import Tools 
+from src.prompts.context_providers import ContextProvider
 from langchain_core.messages import AIMessage
 from src.prompts.get_prompts import get_prompt
 from dotenv import load_dotenv
@@ -136,7 +137,7 @@ class Nodes:
                 'type': 'tool_calls',
                 'content': last_message.tool_calls
             }
-            PostgreSQL.save_message(session_id=number, message=tool_calls_payload)
+            PostgreSQL.save_message(session_id=number, sender="tool" , message=tool_calls_payload)
             
             # ✅ Depois salva o resultado
             for i, tool_msg in enumerate(response['messages']):
@@ -148,7 +149,7 @@ class Nodes:
                         'content': tool_msg.content,
                         'tool_call_id': tool_msg.tool_call_id
                     }
-                    PostgreSQL.save_message(session_id=number, message=tool_result_payload)
+                    PostgreSQL.save_message(session_id=number, sender="tool", message=tool_result_payload)
 
         return {'messages': [last_message] + response['messages']}
 
@@ -160,21 +161,34 @@ class Nodes:
         name="recepcionista",
         prompt=prompt_recepcionista,
         llm=Tools.llm_with_tools_recepcionista,
-        get_history=PostgreSQL.get_historico
+        get_history=PostgreSQL.get_historico,
+        context_providers=[
+            ContextProvider.context_datetime,
+            ContextProvider.context_user_number
+        ]
     )
 
     rag = Agent(
         name="rag",
         prompt=prompt_rag,
         llm=Tools.llm_with_tools_rag,
-        get_history=PostgreSQL.get_historico
+        get_history=PostgreSQL.get_historico,
+        context_providers=[
+            ContextProvider.context_datetime,
+            ContextProvider.context_user_number
+        ]
     )
 
     agendamento = Agent(
         name="agendamento",
         prompt=prompt_agendamento,
         llm=Tools.llm_with_tools_agendamento,
-        get_history=PostgreSQL.get_historico
+        get_history=PostgreSQL.get_historico,
+        context_providers=[
+            ContextProvider.context_datetime,
+            ContextProvider.context_user_number,
+            ContextProvider.context_calendario
+        ]
     )
 
     orquestrador = Agent(
