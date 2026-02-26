@@ -1,8 +1,9 @@
-from src.agent.agents import agent_orquestrador, agent_agendamento, agent_rag, agent_recepcionista
+from src.agent.agents import Agent
+from src.graph.states import NextAgent
 from src.db.crud import PostgreSQL
 from src.evo.client import EvolutionAPI
 from src.graph.states import State
-from src.graph.tools import Tools
+from src.graph.tools import Tools 
 from langchain_core.messages import AIMessage
 from src.prompts.get_prompts import get_prompt
 from dotenv import load_dotenv
@@ -152,44 +153,38 @@ class Nodes:
         return {'messages': [last_message] + response['messages']}
 
     @staticmethod
-    def node_agent_orquestrador(state: State):
-        return agent_orquestrador(
-            state=state,
-            prompt_ia=prompt_orquestrador,
-            get_history=PostgreSQL.get_historico,
-        )
-
-    @staticmethod
     def route_from_orquestrador(state: State) -> str:
         return state["next_agent"].next_agent
+    
+    recepcionista = Agent(
+        name="recepcionista",
+        prompt=prompt_recepcionista,
+        llm=Tools.llm_with_tools_recepcionista,
+        get_history=PostgreSQL.get_historico
+    )
 
-    @staticmethod
-    def node_agent_recepcionista(state: State):
-        return agent_recepcionista(
-            state=state,
-            prompt_ia=prompt_recepcionista,
-            llm_model=Tools.llm_with_tools_recepcionista,
-            get_history=PostgreSQL.get_historico,
-        )
-    
-    @staticmethod
-    def node_agent_rag(state: State):
-        return agent_rag(
-            state=state,
-            prompt_ia=prompt_rag,
-            llm_model=Tools.llm_with_tools_rag,
-            get_history=PostgreSQL.get_historico,
-        )
-    
-    @staticmethod
-    def node_agent_agendamento(state: State):
-        return agent_agendamento(
-            state=state,
-            prompt_ia=prompt_agendamento,
-            llm_model=Tools.llm_with_tools_agendamento,
-            get_history=PostgreSQL.get_historico,
-        )
-    
+    rag = Agent(
+        name="rag",
+        prompt=prompt_rag,
+        llm=Tools.llm_with_tools_rag,
+        get_history=PostgreSQL.get_historico
+    )
+
+    agendamento = Agent(
+        name="agendamento",
+        prompt=prompt_agendamento,
+        llm=Tools.llm_with_tools_agendamento,
+        get_history=PostgreSQL.get_historico
+    )
+
+    orquestrador = Agent(
+        name="orquestrador",
+        prompt=prompt_orquestrador,
+        llm=Tools.llm_orquestrador,
+        get_history=PostgreSQL.get_historico,
+        structured_schema=NextAgent
+    )
+
     @staticmethod
     def node_chamar_humano(state: State):
         print(" =========== Encaminhando para Humano ===========")

@@ -85,7 +85,7 @@ def create_tables(retries=10, delay=3):
                 created_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'America/Sao_Paulo')
             );
 
-            CREATE TABLE doctor_rules (
+            CREATE TABLE IF NOT EXISTS doctor_rules (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 name VARCHAR(150) NOT NULL,
                 doctor_number VARCHAR(13),
@@ -109,11 +109,12 @@ def create_tables(retries=10, delay=3):
             END;
             $$ language 'plpgsql';
 
+            DROP TRIGGER IF EXISTS update_doctor_rules_updated_at ON doctor_rules;
+
             CREATE TRIGGER update_doctor_rules_updated_at
             BEFORE UPDATE ON doctor_rules
             FOR EACH ROW
-            EXECUTE PROCEDURE update_updated_at_column();
-
+            EXECUTE FUNCTION update_updated_at_column();
 
             CREATE INDEX IF NOT EXISTS calendar_events_session_idx
             ON calendar_events (user_number);

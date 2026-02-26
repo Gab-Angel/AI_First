@@ -105,7 +105,9 @@ class Tools:
     def buscar_rag(query: str, categoria: str = None) -> str:
 
         print("Ferramenta: =========== Buscar no RAG ===========")
-        print(f"QUERY:  === {query} ===")
+        print(f"QUERY:  === {query} ==="
+              f"CATEGORIA: === {categoria} ==="
+              )
         # Gera embedding
         response = client.embeddings.create(
             model="text-embedding-3-small",
@@ -530,3 +532,4 @@ class Tools:
     llm_with_tools_recepcionista = llm.bind_tools(tools_recepcionista)
     llm_with_tools_agendamento = llm.bind_tools(tools_agendamento)
     llm_with_tools_rag = llm.bind_tools(tools_rag)
+    llm_orquestrador = llm

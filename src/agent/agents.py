@@ -56,117 +56,44 @@ llm = ChatCerebras(
 #     temperature=0,
 # )
 
-def agent_recepcionista(state, prompt_ia: str, llm_model, get_history):
-    numero = state['number']
+class Agent:
+    def __init__(
+        self,
+        name: str,
+        prompt: str,
+        llm,
+        get_history,
+        structured_schema=None
+    ):
+        self.name = name
+        self.prompt = prompt
+        self.llm = llm
+        self.get_history = get_history
+        self.structured_schema = structured_schema
 
-    # Recupera histórico com função injetada (agora síncrona)
-    mensagens_historico = get_history(numero)
+    def __call__(self, state):
+        print(f'🤖 Agente {self.name} pensando...')
+        numero = state["number"]
 
-    # Junta com mensagens do state (mensagem atual)
-    mensagens_historico.extend(state['messages'])
+        history = self.get_history(numero)
+        history.extend(state["messages"])
 
-    print('🤖 Agente Recepcionista pensando...')
+        system_prompt = f"{self.prompt}"
 
-    system_prompt = (
-        f'{prompt_ia}\n\n'
-        f'DATA/HORA ATUAL: {now}\n'
-        f'IMPORTANTE: O número do usuário é {numero}. '
-    )
+        messages = [SystemMessage(content=system_prompt)] + history
 
-    messages = [SystemMessage(content=system_prompt)] + mensagens_historico
+        if self.structured_schema:
+            llm = self.llm.with_structured_output(self.structured_schema)
+            response = llm.invoke(messages)
+            return {
+                "next_agent": response,
+                "agent_name": self.name
+            }
 
-    # Chamada do modelo
-    response = llm_model.invoke(messages)
+        response = self.llm.invoke(messages)
 
-    return {
-        'messages': [response],
-        'agent_name': 'recepcionista'
+        return {
+            "messages": [response],
+            "agent_name": self.name
         }
-
-
-def agent_orquestrador(state, prompt_ia: str, get_history):
-    numero = state['number']
-
-    # Recupera histórico com função injetada (agora síncrona)
-    mensagens_historico = get_history(numero)
-
-    # Junta com mensagens do state (mensagem atual)
-    mensagens_historico.extend(state['messages'])
-
-    print('🤖 Agente Orquestrador pensando...')
-
-    system_prompt = (
-        f'{prompt_ia}\n\n'
-        f'DATA/HORA ATUAL: {now}\n'
-        f'IMPORTANTE: O número do usuário é {numero}. '
-    )
-
-    messages = [SystemMessage(content=system_prompt)] + mensagens_historico
-
-    structured_llm = llm.with_structured_output(NextAgent)
-    # Chamada do modelo
-    response = structured_llm.invoke(messages)
-
-    return {
-            "next_agent": response,
-            "agent_name": 'orquestrador'
-        }
-
-
-
-def agent_rag(state, prompt_ia: str, llm_model, get_history):
-    numero = state['number']
-
-    mensagens_historico = get_history(numero)
-
-    mensagens_historico.extend(state['messages'])
-
-    print('🤖 Agente Rag pensando...')
-
-    system_prompt = (
-        f'{prompt_ia}\n\n'
-        f'DATA/HORA ATUAL: {now}\n'
-        f'IMPORTANTE: O número do usuário é {numero}. '
-    )
-
-    messages = [SystemMessage(content=system_prompt)] + mensagens_historico
-
-    response = llm_model.invoke(messages)
-
-    return {
-        'messages': [response],
-        'agent_name': 'rag'
-        }
-
-
-def agent_agendamento(state, prompt_ia: str, llm_model, get_history):
-    numero = state['number']
-
-    # Recupera histórico com função injetada (agora síncrona)
-    mensagens_historico = get_history(numero)
-
-    # Junta com mensagens do state (mensagem atual)
-    mensagens_historico.extend(state['messages'])
-
-    print('🤖 Agente Agendamento pensando...')
-
-    system_prompt = (
-        f'{prompt_ia}\n\n'
-        f'DATA/HORA ATUAL: {now}\n'
-        f'CALENDÁRIO de 31 dias: {calendario_ref}\n'
-        f'IMPORTANTE: Use o calendário acima para identificar dias da semana.\n'
-        f'IMPORTANTE: O número do usuário é {numero}. '
-        f'Use sempre este número ao chamar ferramentas.'
-    )
-
-    messages = [SystemMessage(content=system_prompt)] + mensagens_historico
-
-    # Chamada do modelo
-    response = llm_model.invoke(messages)
-
-    return {
-        'messages': [response],
-        'agent_name': 'agendamento'
-        }
-
  
