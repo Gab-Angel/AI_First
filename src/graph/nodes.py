@@ -17,10 +17,6 @@ PROMPT_RECEPCIONISTA = os.getenv("PROMPT_RECEPCIONISTA")
 PROMPT_RAG = os.getenv('PROMPT_RAG')
 PROMPT_ORQUESTRADOR = os.getenv('PROMPT_ORQUESTRADOR')
 
-prompt_agendamento = get_prompt(prompt_name=PROMPT_AGENDAMENTO)
-prompt_recepcionista = get_prompt(prompt_name=PROMPT_RECEPCIONISTA)
-prompt_rag = get_prompt(prompt_name=PROMPT_RAG)
-prompt_orquestrador = get_prompt(prompt_name=PROMPT_ORQUESTRADOR)
 
 evo = EvolutionAPI()
 
@@ -157,47 +153,57 @@ class Nodes:
     def route_from_orquestrador(state: State) -> str:
         return state["next_agent"].next_agent
     
-    recepcionista = Agent(
-        name="recepcionista",
-        prompt=prompt_recepcionista,
-        llm=Tools.llm_with_tools_recepcionista,
-        get_history=PostgreSQL.get_historico,
-        context_providers=[
-            ContextProvider.context_datetime,
-            ContextProvider.context_user_number
-        ]
-    )
 
-    rag = Agent(
-        name="rag",
-        prompt=prompt_rag,
-        llm=Tools.llm_with_tools_rag,
-        get_history=PostgreSQL.get_historico,
-        context_providers=[
-            ContextProvider.context_datetime,
-            ContextProvider.context_user_number
-        ]
-    )
+    @staticmethod
+    def node_agent_recepcionista():
+        return Agent(
+            name="recepcionista",
+            prompt=get_prompt(prompt_name=PROMPT_RECEPCIONISTA),
+            llm=Tools.llm_with_tools_recepcionista,
+            get_history=PostgreSQL.get_historico,
+            context_providers=[
+                ContextProvider.context_calendario,
+                ContextProvider.context_datetime,
+                ContextProvider.context_user_number
+            ]
+        )
 
-    agendamento = Agent(
-        name="agendamento",
-        prompt=prompt_agendamento,
-        llm=Tools.llm_with_tools_agendamento,
-        get_history=PostgreSQL.get_historico,
-        context_providers=[
-            ContextProvider.context_datetime,
-            ContextProvider.context_user_number,
-            ContextProvider.context_calendario
-        ]
-    )
+    @staticmethod
+    def node_agent_rag():
+        return  Agent(
+            name="rag",
+            prompt=get_prompt(prompt_name=PROMPT_RAG),
+            llm=Tools.llm_with_tools_rag,
+            get_history=PostgreSQL.get_historico,
+            context_providers=[
+                ContextProvider.context_datetime,
+                ContextProvider.context_user_number
+            ]
+        )
 
-    orquestrador = Agent(
-        name="orquestrador",
-        prompt=prompt_orquestrador,
-        llm=Tools.llm_orquestrador,
-        get_history=PostgreSQL.get_historico,
-        structured_schema=NextAgent
-    )
+    @staticmethod
+    def node_agent_agendamento():
+        return Agent(
+            name="agendamento",
+            prompt=get_prompt(prompt_name=PROMPT_AGENDAMENTO),
+            llm=Tools.llm_with_tools_agendamento,
+            get_history=PostgreSQL.get_historico,
+            context_providers=[
+                ContextProvider.context_datetime,
+                ContextProvider.context_user_number,
+                ContextProvider.context_calendario
+            ]
+        )
+
+    @staticmethod
+    def node_agent_orquestrador():
+        return Agent(
+            name="orquestrador",
+            prompt=get_prompt(prompt_name=PROMPT_ORQUESTRADOR),
+            llm=Tools.llm_orquestrador,
+            get_history=PostgreSQL.get_historico,
+            structured_schema=NextAgent
+        )
 
     @staticmethod
     def node_chamar_humano(state: State):

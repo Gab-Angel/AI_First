@@ -1,0 +1,42 @@
+{
+  "clinica": {
+    "nome": "NeuraSus",
+    "especialidade": "Neurologia e Psiquiatria",
+    "cnpj": "12.345.678/0001-90",
+    "telefone": "(11) 3344-5566",
+    "whatsapp": "5511999990000",
+    "email": "contato@neurasusClinica.com.br",
+    "site": "www.neurasusclinica.com.br",
+    "endereco": {
+      "rua": "Av. Paulista, 1500 - Sala 210",
+      "bairro": "Bela Vista",
+      "cidade": "São Paulo",
+      "estado": "SP",
+      "cep": "01310-100"
+    },
+    "horario_funcionamento": {
+      "segunda_sexta": "08:00 - 19:00",
+      "sabado": "08:00 - 13:00",
+      "domingo": "Fechado"
+    },
+    "sobre": "A NeuraSus é uma clínica especializada em Neurologia e Psiquiatria, fundada em 2015. Nossa missão é oferecer atendimento humanizado e de alta qualidade, combinando tecnologia de ponta com cuidado integral ao paciente. Contamos com equipe multidisciplinar e ambiente acolhedor para diagnóstico e tratamento de doenças neurológicas e transtornos mentais."
+  },
+
+  "cadastro": {
+    "campos_obrigatorios": ["nome_completo", "cpf", "convenio"],
+    "convenio_particular": "particular",
+    "observacao": "Convênio deve ser informado em lowercase. Se o paciente não tiver convênio, registrar como 'particular'."
+  },
+
+
+  "convenios_aceitos": [
+    "unimed",
+    "bradesco saude",
+    "sulamerica",
+    "amil",
+    "porto seguro",
+    "hapvida",
+    "particular"
+  ]
+
+}
