@@ -19,40 +19,40 @@ calendar_client = GoogleCalendarClient()
 
 
 class Tools:
-    @tool(description="""
-    Salva informações do paciente no cadastro.
+#     @tool(description="""
+#     Salva informações do paciente no cadastro.
     
-    Args:
-        phone_number: Número do paciente (obrigatório)
-        nome_completo: Nome completo fornecido
-        cpf: CPF do paciente
-        convenio: Convênio médico
-        observacoes: Informações adicionais
+#     Args:
+#         phone_number: Número do paciente (obrigatório)
+#         nome_completo: Nome completo fornecido
+#         cpf: CPF do paciente
+#         convenio: Convênio médico
+#         observacoes: Informações adicionais
     
-    Returns:
-        Confirmação de atualização
-""")
-    def atualizar_cadastro(
-        phone_number: str,
-        nome_completo: str | None = None,
-        cpf: str | None = None,
-        convenio: str | None = None,
-        observacoes: dict | None = None,
-    ) -> str:
-        print("Ferramenta: =========== Atualizar Cadastro ===========")
+#     Returns:
+#         Confirmação de atualização
+# """)
+#     def atualizar_cadastro(
+#         phone_number: str,
+#         nome_completo: str | None = None,
+#         cpf: str | None = None,
+#         convenio: str | None = None,
+#         observacoes: dict | None = None,
+#     ) -> str:
+#         print("Ferramenta: =========== Atualizar Cadastro ===========")
         
-        try:
-            PostgreSQL.update_user(
-                phone_number=phone_number,
-                nome_completo=nome_completo,
-                cpf=cpf,
-                convenio=convenio,
-                observacoes=observacoes,
-            )
-            return "Cadastro atualizado com sucesso."
+#         try:
+#             PostgreSQL.update_user(
+#                 phone_number=phone_number,
+#                 nome_completo=nome_completo,
+#                 cpf=cpf,
+#                 convenio=convenio,
+#                 observacoes=observacoes,
+#             )
+#             return "Cadastro atualizado com sucesso."
         
-        except Exception as e:
-            return f"Erro ao atualizar cadastro: {str(e)}"
+#         except Exception as e:
+#             return f"Erro ao atualizar cadastro: {str(e)}"
 
     @tool(description="""
         Finaliza o cadastro do paciente, marcando como completo.
@@ -181,7 +181,7 @@ class Tools:
             cursor = conn.cursor()
             
             query = """
-                SELECT id, name
+                SELECT id, name, calendar_id
                 FROM doctor_rules
                 WHERE active = true
                   AND EXISTS (
@@ -516,7 +516,7 @@ class Tools:
     ]
 
     tools_recepcionista = [
-        atualizar_cadastro,
+    #    atualizar_cadastro,
         finalizar_cadastro
     ]
     

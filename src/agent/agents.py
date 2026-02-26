@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 # from langchain_openai import ChatOpenAI
 from langchain_cerebras import ChatCerebras
 from langchain_core.messages import SystemMessage
-from src.graph.states import NextAgent
+from typing import Callable, List, Optional
 
 load_dotenv()
 
@@ -48,11 +48,9 @@ llm = ChatCerebras(
     temperature=0
 )
 
-
-# MODEL_NAME = os.getenv("OPENAI_MODEL", "gpt-4.1")
 # llm = ChatOpenAI(
 #     api_key=os.getenv('OPENAI_API_KEY'),
-#     model=MODEL_NAME,
+#     model=os.getenv("OPENAI_MODEL", "gpt-4.1")
 #     temperature=0,
 # )
 
@@ -62,14 +60,16 @@ class Agent:
         name: str,
         prompt: str,
         llm,
-        get_history,
-        structured_schema=None
+        get_history: Callable,
+        structured_schema: Optional[object] = None,
+        context_providers: Optional[List[Callable]] = None,
     ):
         self.name = name
         self.prompt = prompt
         self.llm = llm
         self.get_history = get_history
         self.structured_schema = structured_schema
+        self.context_providers = context_providers or []
 
     def __call__(self, state):
         print(f'🤖 Agente {self.name} pensando...')
@@ -78,7 +78,17 @@ class Agent:
         history = self.get_history(numero)
         history.extend(state["messages"])
 
-        system_prompt = f"{self.prompt}"
+        context_parts = [
+            provider(state)
+            for provider in self.context_providers
+        ]
+
+        context_text = "\n".join(context_parts)
+
+        system_prompt = (
+            f"{self.prompt}\n\n"
+            f"{context_text}"
+        )
 
         messages = [SystemMessage(content=system_prompt)] + history
 
