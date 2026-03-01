@@ -203,7 +203,7 @@ class Tools:
                 return "Nenhum doutor disponível para este procedimento/convênio."
             
             resultado = [
-                {"id": str(dr['id']), "nome": dr['name']}
+                {"id": str(dr['id']), "nome": dr['name'], "calendar_id": dr['calendar_id']}
                 for dr in doutores
             ]
             
@@ -320,7 +320,11 @@ class Tools:
         data_fim: str,
         calendar_id: str
     ) -> str:
-        
+        # print(f"number: {number}")
+        # print(f"data_inicio: {data_inicio}")
+        # print(f"data_fim: {data_fim}")
+        # print(f"calendar_id: {calendar_id}")
+
         print("Ferramenta: =========== Verificar Agenda ===========")
         try:
             eventos = calendar_client.verificar(
@@ -337,7 +341,6 @@ class Tools:
                 resultado += f"- {evento['summary']}: {evento['start']} até {evento['end']}\n"
             
             return resultado
-            
         except Exception as e:
             return f"Erro ao verificar agenda: {str(e)}"
     
@@ -384,7 +387,7 @@ class Tools:
 
 
             PostgreSQL.save_calendar_event(
-                session_id=number,
+                user_number=number,
                 event_id=evento['id'],
                 summary=evento['summary'],
                 procedure=procedimento,

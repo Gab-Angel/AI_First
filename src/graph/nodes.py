@@ -52,9 +52,7 @@ class Nodes:
     def node_save_user(state: State):
         number = state['number']
 
-        PostgreSQL.create_user(
-            phone_number=number
-        )
+        PostgreSQL.create_user(phone_number=number)
 
         return state
 
@@ -66,16 +64,13 @@ class Nodes:
         if messages:
             ultima = messages[-1]
             conteudo = ultima.content
-
             message_payload = {'type': 'human', 'content': conteudo}
-
             PostgreSQL.save_message(session_id=number, sender='user', message=message_payload)
 
         return state
     
     @staticmethod
     def node_save_message_ai(state: State):
-
         message = state['messages']
         number = state['number']
         name_agent = state['agent_name']
@@ -83,10 +78,8 @@ class Nodes:
         if message:
             ultima = message[-1]
             conteudo = ultima.content
-
             message_payload = {'type': 'ai', 'content': conteudo}
-
-            PostgreSQL.save_message(session_id=number, sender='ai', agent_name=name_agent ,message=message_payload)
+            PostgreSQL.save_message(session_id=number, sender='ai', agent_name=name_agent, message=message_payload)
 
         return state
 
@@ -117,42 +110,13 @@ class Nodes:
         print('🛠️ Executando ferramentas...')
         
         last_message = state['messages'][-1]
-        number = state['number']
-
         response = Tools.tool_node.invoke({'messages': [last_message]})
-
-        # Lista de tools que precisam ser salvas para dar contexto à IA
-        tools_to_save = [
-            tc for tc in last_message.tool_calls 
-            if tc['name'] in ['listar_doutores_disponiveis', 'buscar_detalhes_doutor']
-        ]
-        
-        if tools_to_save:
-            # ✅ Salva a tool_call ANTES
-            tool_calls_payload = {
-                'type': 'tool_calls',
-                'content': last_message.tool_calls
-            }
-            PostgreSQL.save_message(session_id=number, sender="tool" , message=tool_calls_payload)
-            
-            # ✅ Depois salva o resultado
-            for i, tool_msg in enumerate(response['messages']):
-                tool_call = last_message.tool_calls[i]
-                
-                if tool_call['name'] in ['listar_doutores_disponiveis', 'buscar_detalhes_doutor']:
-                    tool_result_payload = {
-                        'type': 'tool',
-                        'content': tool_msg.content,
-                        'tool_call_id': tool_msg.tool_call_id
-                    }
-                    PostgreSQL.save_message(session_id=number, sender="tool", message=tool_result_payload)
 
         return {'messages': [last_message] + response['messages']}
 
     @staticmethod
     def route_from_orquestrador(state: State) -> str:
         return state["next_agent"].next_agent
-    
 
     @staticmethod
     def node_agent_recepcionista():
@@ -160,7 +124,6 @@ class Nodes:
             name="recepcionista",
             prompt=get_prompt(prompt_name=PROMPT_RECEPCIONISTA),
             llm=Tools.llm_with_tools_recepcionista,
-            get_history=PostgreSQL.get_historico,
             context_providers=[
                 ContextProvider.context_calendario,
                 ContextProvider.context_datetime,
@@ -170,11 +133,10 @@ class Nodes:
 
     @staticmethod
     def node_agent_rag():
-        return  Agent(
+        return Agent(
             name="rag",
             prompt=get_prompt(prompt_name=PROMPT_RAG),
             llm=Tools.llm_with_tools_rag,
-            get_history=PostgreSQL.get_historico,
             context_providers=[
                 ContextProvider.context_datetime,
                 ContextProvider.context_user_number
@@ -187,7 +149,6 @@ class Nodes:
             name="agendamento",
             prompt=get_prompt(prompt_name=PROMPT_AGENDAMENTO),
             llm=Tools.llm_with_tools_agendamento,
-            get_history=PostgreSQL.get_historico,
             context_providers=[
                 ContextProvider.context_datetime,
                 ContextProvider.context_user_number,
@@ -201,7 +162,6 @@ class Nodes:
             name="orquestrador",
             prompt=get_prompt(prompt_name=PROMPT_ORQUESTRADOR),
             llm=Tools.llm_orquestrador,
-            get_history=PostgreSQL.get_historico,
             structured_schema=NextAgent
         )
 
@@ -216,23 +176,17 @@ class Nodes:
             PostgreSQL.update_require_human(phone_number=numero)
             
             evo = EvolutionAPI()
-
-            evo.notify_human(
-                phone_number=numero,
-                reason=motivo
-            )
+            evo.notify_human(phone_number=numero, reason=motivo)
 
             return {'messages': [
                 AIMessage(
                     content=(
-                            "Estou te transferindo para um humano 👩‍⚕️👨‍⚕️\n"
-                            "Assim que possível, alguém irá continuar o atendimento."
-                            )
-                        )
+                        "Estou te transferindo para um humano 👩‍⚕️👨‍⚕️\n"
+                        "Assim que possível, alguém irá continuar o atendimento."
+                    )
+                )
             ]}
-        
 
         except Exception as e:
             print(f"🔍 DEBUG - Erro capturado: {e}")
             return {'messages': [AIMessage(content="Houve um erro ao encaminhar para um humano. Tente novamente em instantes.")]}
-        

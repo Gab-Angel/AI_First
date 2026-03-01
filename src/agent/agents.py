@@ -1,46 +1,12 @@
 import os 
-from datetime import datetime, timedelta
 from dotenv import load_dotenv
-# from langchain_openai import ChatOpenAI
 from langchain_cerebras import ChatCerebras
-from langchain_core.messages import SystemMessage
-from typing import Callable, List, Optional
+from langchain_core.messages import SystemMessage, ToolMessage
+from typing import List, Optional
 
 load_dotenv()
 
-# horário atual
-DIAS_PT = {
-    "Monday": "segunda-feira",
-    "Tuesday": "terça-feira",
-    "Wednesday": "quarta-feira",
-    "Thursday": "quinta-feira",
-    "Friday": "sexta-feira",
-    "Saturday": "sábado",
-    "Sunday": "domingo",
-}
-
-now_dt = datetime.now()
-day_en = now_dt.strftime("%A")
-day_pt = DIAS_PT.get(day_en, day_en)
-
-now = now_dt.strftime("%Y-%m-%d %H:%M:%S") + f" | {day_pt}"
-
-def gerar_calendario_4_semanas():
-    """Gera calendário das próximas 2 semanas"""
-    hoje = datetime.now()
-    dias_semana = ['segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo']
-    
-    calendario = []
-    for i in range(31):
-        data = hoje + timedelta(days=i)
-        dia_semana = dias_semana[data.weekday()]
-        calendario.append(f"{data.strftime('%d/%m')} ({dia_semana})")
-    
-    return " | ".join(calendario)
-
-# No system_prompt:
-calendario_ref = gerar_calendario_4_semanas()
-
+MAX_MESSAGES = 20
 
 llm = ChatCerebras(
     api_key=os.getenv('CEREBRAS_API_KEY'),
@@ -50,7 +16,7 @@ llm = ChatCerebras(
 
 # llm = ChatOpenAI(
 #     api_key=os.getenv('OPENAI_API_KEY'),
-#     model=os.getenv("OPENAI_MODEL", "gpt-4.1")
+#     model=os.getenv("OPENAI_MODEL", "gpt-4.1"),
 #     temperature=0,
 # )
 
@@ -60,23 +26,17 @@ class Agent:
         name: str,
         prompt: str,
         llm,
-        get_history: Callable,
         structured_schema: Optional[object] = None,
-        context_providers: Optional[List[Callable]] = None,
+        context_providers: Optional[List] = None,
     ):
         self.name = name
         self.prompt = prompt
         self.llm = llm
-        self.get_history = get_history
         self.structured_schema = structured_schema
         self.context_providers = context_providers or []
 
     def __call__(self, state):
         print(f'🤖 Agente {self.name} pensando...')
-        numero = state["number"]
-
-        history = self.get_history(numero)
-        history.extend(state["messages"])
 
         context_parts = [
             provider(state)
@@ -90,7 +50,14 @@ class Agent:
             f"{context_text}"
         )
 
-        messages = [SystemMessage(content=system_prompt)] + history
+        # 1. Limita o histórico a 20 mensagens
+        message_history = state['messages'][-MAX_MESSAGES:]
+
+        # 2. Garante que não começa com ToolMessage sem tool_call pareado
+        while message_history and isinstance(message_history[0], ToolMessage):
+            message_history = message_history[1:]
+
+        messages = [SystemMessage(content=system_prompt)] + message_history
 
         if self.structured_schema:
             llm = self.llm.with_structured_output(self.structured_schema)
@@ -106,4 +73,3 @@ class Agent:
             "messages": [response],
             "agent_name": self.name
         }
- 
