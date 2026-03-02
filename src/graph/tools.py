@@ -123,7 +123,7 @@ class Tools:
         
         # Formata resposta
         contexto = "\n\n".join([
-            f"[{r['categoria']}] {r['content']}"
+            f"[{r['category']}] {r['content']}"
             for r in results
         ])
         
@@ -132,25 +132,25 @@ class Tools:
     @tool(description="""
         Envia arquivo institucional ao paciente.
         
-        Tipos: cardapio, localizacao, convenios, etc
+        Tipos: sobre, localizacao, convenios, etc
         """)
     def enviar_arquivo(numero: str, tipo: str) -> str:
-        
+        print("Ferramenta: =========== Enviar Arquivo ===========")
         file_info = PostgreSQL.get_file(categoria=tipo)
         
         if not file_info:
             return f"Arquivo '{tipo}' não encontrado"
-        
+        print(f"DEBUG file_info: {dict(file_info)}")
         # Envia
         evo = EvolutionAPI()
         evo.sender_file(
             numero=numero,
-            media_type=file_info['mediaType'],
-            file_name=file_info['fileName'],
+            media_type=file_info['mediatype'],
+            file_name=file_info['filename'],
             media=file_info['path']
         )
         
-        return f"Arquivo '{file_info['fileName']}' enviado"
+        return f"Arquivo '{file_info['filename']}' enviado"
 
     @tool(description=
           """

@@ -266,7 +266,7 @@ class PostgreSQL:
             cursor = conn.cursor()
 
             query = """
-                SELECT category, fileName, mediaType, path
+                SELECT category, filename, mediatype, path
                 FROM files
                 WHERE category ILIKE %s
                 LIMIT 1;
