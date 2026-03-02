@@ -52,8 +52,8 @@ def create_tables(retries=10, delay=3):
             CREATE TABLE IF NOT EXISTS files (
                 id SERIAL PRIMARY KEY,
                 category VARCHAR(100) NOT NULL,
-                fileName VARCHAR(255) NOT NULL,
-                mediaType VARCHAR(20) NOT NULL,
+                filename VARCHAR(255) NOT NULL,
+                mediatype VARCHAR(20) NOT NULL,
                 path VARCHAR NOT NULL,
                 created_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'America/Sao_Paulo')
             );
@@ -116,21 +116,26 @@ def create_tables(retries=10, delay=3):
             FOR EACH ROW
             EXECUTE FUNCTION update_updated_at_column();
 
-            CREATE INDEX IF NOT EXISTS calendar_events_session_idx
+            CREATE INDEX IF NOT EXISTS calendar_events_user_idx
             ON calendar_events (user_number);
 
             CREATE INDEX IF NOT EXISTS calendar_events_event_idx
             ON calendar_events (event_id);
 
-            
-            CREATE INDEX IF NOT EXISTS arquivos_categoria_idx
+            CREATE INDEX IF NOT EXISTS chat_session_idx
+            ON chat (session_id);
+
+            CREATE INDEX IF NOT EXISTS token_usage_phone_idx
+            ON token_usage (phone_number);
+
+            CREATE INDEX IF NOT EXISTS files_category_idx
             ON files (category);
 
-            CREATE INDEX IF NOT EXISTS arquivos_mediaType_idx
-            ON files (mediaType);
+            CREATE INDEX IF NOT EXISTS files_mediatype_idx
+            ON files (mediatype);
 
-            CREATE INDEX IF NOT EXISTS arquivos_fileName_idx
-            ON files (fileName);
+            CREATE INDEX IF NOT EXISTS files_filename_idx
+            ON files (filename);
             """
 
             cursor.execute(sql)
@@ -160,12 +165,12 @@ def clean_tables():
         cursor.execute('TRUNCATE TABLE chat RESTART IDENTITY')
         cursor.execute('TRUNCATE TABLE users CASCADE')
         cursor.execute('TRUNCATE TABLE token_usage')
-        # cursor.execute("TRUNCATE TABLE rag_embeddings RESTART IDENTITY")  # ← adicionar
+        # cursor.execute("TRUNCATE TABLE rag_embeddings RESTART IDENTITY")
         conn.commit()
         print('✅ Tabelas limpas com sucesso!')
 
     except Exception as e:
-        conn.rollback()  # ← boa prática adicionar rollback
+        conn.rollback()
         print(f'❌ Erro ao limpar tabelas: {e}')
 
     finally:
