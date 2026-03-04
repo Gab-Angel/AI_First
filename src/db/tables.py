@@ -70,7 +70,7 @@ def create_tables(retries=10, delay=3):
                     CHECK (status IN ('pending', 'confirmed', 'canceled')),
                 start_time TIMESTAMPTZ,
                 end_time TIMESTAMPTZ,
-                created_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'America/Sao_Paulo')
+                created_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'America/Sao_Paulo'),
                 updated_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'America/Sao_Paulo')
             );
 
