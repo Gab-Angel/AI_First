@@ -1,5 +1,6 @@
 import os
 from src.db.crud import PostgreSQL
+import re
 
 import requests
 from dotenv import load_dotenv
@@ -42,7 +43,6 @@ class EvolutionAPI:
             # Se parágrafo > 300 chars, quebra em frases
             if len(paragrafo) > 300:
                 # Split inteligente: só quebra após ., !, ? seguidos de espaço
-                import re
                 frases = re.split(r'(?<=[.!?])\s+', paragrafo)
                 
                 for frase in frases:
@@ -150,7 +150,7 @@ class EvolutionAPI:
     def notify_human(self, phone_number: str, reason: str):
 
         user = PostgreSQL.get_user_by_number(number=phone_number)
-        nome = user.get('nome_completo', 'Nome não cadastrado')
+        nome = user.get('complete_name', 'Nome não cadastrado')
 
         mensagem = f"""🔔 *Paciente precisando de atendimento*
 

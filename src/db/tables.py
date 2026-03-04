@@ -71,6 +71,7 @@ def create_tables(retries=10, delay=3):
                 start_time TIMESTAMPTZ,
                 end_time TIMESTAMPTZ,
                 created_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'America/Sao_Paulo')
+                updated_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'America/Sao_Paulo')
             );
 
             CREATE TABLE IF NOT EXISTS token_usage (
