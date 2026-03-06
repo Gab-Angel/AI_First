@@ -19,40 +19,41 @@ calendar_client = GoogleCalendarClient()
 
 
 class Tools:
-#     @tool(description="""
-#     Salva informações do paciente no cadastro.
+    @tool(description="""
+    Salva informações do paciente no cadastro.
     
-#     Args:
-#         phone_number: Número do paciente (obrigatório)
-#         nome_completo: Nome completo fornecido
-#         cpf: CPF do paciente
-#         convenio: Convênio médico
-#         observacoes: Informações adicionais
+    Args:
+        phone_number: Número do paciente (obrigatório)
+        nome_completo: Nome completo fornecido
+        cpf: CPF do paciente
+        convenio: Convênio médico
+        observacoes: Informações adicionais
     
-#     Returns:
-#         Confirmação de atualização
-# """)
-#     def atualizar_cadastro(
-#         phone_number: str,
-#         nome_completo: str | None = None,
-#         cpf: str | None = None,
-#         convenio: str | None = None,
-#         observacoes: dict | None = None,
-#     ) -> str:
-#         print("Ferramenta: =========== Atualizar Cadastro ===========")
+    Returns:
+        Confirmação de atualização
+""")
+    def atualizar_cadastro(
+        phone_number: str,
+        nome_completo: str | None = None,
+        cpf: str | None = None,
+        convenio: str | None = None,
+        observacoes: dict | None = None,
+    ) -> str:
+        print("Ferramenta: =========== Atualizar Cadastro ===========")
         
-#         try:
-#             PostgreSQL.update_user(
-#                 phone_number=phone_number,
-#                 nome_completo=nome_completo,
-#                 cpf=cpf,
-#                 convenio=convenio,
-#                 observacoes=observacoes,
-#             )
-#             return "Cadastro atualizado com sucesso."
+        try:
+            PostgreSQL.update_user(
+                phone_number=phone_number,
+                complete_name=nome_completo,
+                cpf=cpf,
+                convenio=convenio,
+                metadata=observacoes,
+            )
+            return "Cadastro atualizado com sucesso."
         
-#         except Exception as e:
-#             return f"Erro ao atualizar cadastro: {str(e)}"
+        except Exception as e:
+            print(f"Erro: {e}")
+            return f"Erro ao atualizar cadastro: {str(e)}"
 
     @tool(description="""
         Finaliza o cadastro do paciente, marcando como completo.
@@ -160,7 +161,7 @@ class Tools:
         
         Args:
             procedimento: Nome do procedimento (obrigatório) - ex: "limpeza", "canal", "clareamento"
-            convenio: Convênio do paciente (opcional) - ex: "unimed", "bradesco", "particular"
+            user_number: Numero do usuário que voce tem acesso
         
         Returns:
             JSON com lista de doutores elegíveis (id e nome apenas)
@@ -171,11 +172,15 @@ class Tools:
             {"id": "uuid-456", "nome": "Doutor B"}
         ]
     """)
-    def listar_doutores_disponiveis(procedimento: str, convenio: str = None) -> str:
+    def listar_doutores_disponiveis(procedimento: str, user_number: str) -> str:
         print("Ferramenta: =========== Listar Doutores Disponíveis ===========")
         print(f"Procedimento: {procedimento}")
-        print(f"Convênio: {convenio or 'Não informado'}")
+        print(f"Número: {user_number or 'Não informado'}")
         
+        user = PostgreSQL.get_user_by_number(number=user_number)
+        convenio = user.get('convenio', None) if user else None
+
+        print(f"Convênio: {convenio or 'Não informado'}")
         try:
             conn = get_vector_conn()
             cursor = conn.cursor()
@@ -500,6 +505,15 @@ class Tools:
 
             print(delete_scheduler)
 
+            # Notifica Doutor sobre o Cancelamento
+            doutor = PostgreSQL.get_doctor_for_id(calendar_id=calendar_id)
+            evo = EvolutionAPI()
+            evo.notificar_admin_cancelamento(
+                paciente_numero=number,
+                doctor_number=doutor['doctor_number'],
+                data_inicio=evento['start_time'].strftime('%Y-%m-%dT%H:%M:%S'),
+                data_fim=evento['end_time'].strftime('%Y-%m-%dT%H:%M:%S')        
+            )
             return (
                 f"✅ Consulta cancelada com sucesso!\n"
                 f"Título: {evento['summary']}\n"
@@ -519,7 +533,7 @@ class Tools:
     ]
 
     tools_recepcionista = [
-    #    atualizar_cadastro,
+        atualizar_cadastro,
         finalizar_cadastro
     ]
     

@@ -100,7 +100,7 @@ class EvolutionAPI:
             if paciente:
                 nome = paciente.get('complete_name', 'Nome não cadastrado')
                 metadata = paciente.get('metadata') or {}
-                convenio = metadata.get('convenio_tipo', 'Não informado')
+                convenio = paciente.get('convenio', 'Não informado')
                 documento = metadata.get('documento', 'Sem documento')
             else:
                 nome = 'Não cadastrado'
@@ -119,7 +119,7 @@ class EvolutionAPI:
             hora_inicio = data_inicio[11:16]
             hora_fim = data_fim[11:16]
             
-            mensagem = f"""🔔 *Novo Agendamento Realizado*
+            mensagem = f"""🔔 *Agendamento Realizado*
 
     👤 Paciente: {nome}
     📞 Telefone: {paciente_numero}
@@ -143,6 +143,58 @@ class EvolutionAPI:
                 self._post(endpoint='/message/sendText', payload=payload)
                 
                 print(f"✅ Doutor de numero: {doctor_number} notificado sobre agendamento")
+
+            except Exception as e:
+                print(f"❌ Erro ao notificar admin: {e}")
+
+    def notificar_admin_cancelamento(self, paciente_numero: str, doctor_number: str, data_inicio: str, data_fim: str):
+            
+            paciente = PostgreSQL.get_user_by_number(paciente_numero)
+            
+            if paciente:
+                nome = paciente.get('complete_name', 'Nome não cadastrado')
+                metadata = paciente.get('metadata') or {}
+                convenio = paciente.get('convenio', 'Não informado')
+                documento = metadata.get('documento', 'Sem documento')
+            else:
+                nome = 'Não cadastrado'
+                convenio = 'Não informado'
+                documento = 'Sem documento'
+
+            if documento == "cpf_informado":
+                cpf = paciente.get('cpf')
+                documento = f'CPF -> {cpf}'
+            elif documento == 'carteirinha_enviada':
+                documento = "Paciente enviou a carteirinha"
+            else:
+                documento = 'Sem documento'
+
+            data = data_inicio[:10]
+            hora_inicio = data_inicio[11:16]
+            hora_fim = data_fim[11:16]
+            
+            mensagem = f"""🔔 *Agendamento Cancelado*
+
+    👤 Paciente: {nome}
+    📞 Telefone: {paciente_numero}
+    📅 Data: {data}
+    🕐 Horário: {hora_inicio} às {hora_fim}
+    Convênio: {convenio}
+    Documento: {documento}
+
+    Verifique a agenda ou entre em contato."""
+            
+            try:
+                payload = {
+                    'number': doctor_number,
+                    'text': mensagem,
+                    'delay': 2000,
+                    'presence': 'composing',
+                }
+
+                self._post(endpoint='/message/sendText', payload=payload)
+                
+                print(f"✅ Doutor de numero: {doctor_number} notificado sobre cancelamento")
 
             except Exception as e:
                 print(f"❌ Erro ao notificar admin: {e}")
