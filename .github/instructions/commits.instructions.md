@@ -13,6 +13,58 @@ A comunicação entre agente e usuário é feita **em português (pt-BR)**. Os c
 
 ---
 
+## ⚙️ Requisito: Agent Mode + MCP do GitKraken
+
+> ⚠️ **Estas instruções só funcionam corretamente no Agent Mode do Copilot.**
+
+Para que o agente consiga ver o estado real do repositório (arquivos modificados, branch atual, histórico de commits, PRs abertas), ele depende do **MCP Server do GitKraken**, embutido na extensão **GitLens**.
+
+### Pré-requisitos
+1. Extensão **GitLens** instalada e atualizada no VS Code
+2. Copilot em modo **Agent** (selecionar no campo de texto do painel lateral)
+3. MCP ativo — verificar em `⚙️ > MCP Server: GitKraken (bundled with GitLens)`
+
+### Ferramentas MCP disponíveis para o agente
+
+Com o MCP ativo, o agente tem acesso direto às seguintes informações **sem precisar que você cole nada**:
+
+| Ferramenta MCP | O que fornece |
+|----------------|---------------|
+| `git_status` | Arquivos modificados, staged e untracked |
+| `git_diff` | Conteúdo exato das alterações |
+| `git_log` | Histórico de commits da branch atual |
+| `git_branches` | Branch ativa e branches disponíveis |
+| `git_show` | Detalhes de um commit específico |
+
+> 💡 Quando o MCP estiver ativo, o agente **deve usar essas ferramentas diretamente** antes de sugerir qualquer commit, sem pedir que o usuário rode comandos manualmente.
+
+---
+
+## 🔍 Passo obrigatório antes de qualquer commit
+
+> ⚠️ **O agente NUNCA deve sugerir um commit sem antes conhecer o estado real do repositório.**
+
+### Se o MCP do GitKraken estiver ativo (Agent Mode)
+O agente deve **usar as ferramentas MCP diretamente** para inspecionar o repositório:
+1. Chamar `git_status` para listar o que foi modificado
+2. Chamar `git_diff` nos arquivos relevantes para entender as alterações
+3. Apresentar um resumo em português do que encontrou e propor o commit
+
+### Se o MCP não estiver disponível (fallback)
+O agente deve pedir que o usuário rode manualmente:
+
+```bash
+git status
+git diff
+```
+
+E aguardar o output antes de sugerir qualquer coisa. Nunca assumir ou inferir o que está modificado sem ver o estado real do repositório.
+
+Se o usuário não fornecer o output, o agente deve perguntar em português:
+> _"Pode rodar `git status` e `git diff` no terminal e colar o resultado aqui? Assim consigo ver exatamente o que foi alterado antes de montar o commit."_
+
+---
+
 ## 🛠️ Comandos que o agente pode gerar
 
 O agente pode gerar os seguintes comandos Git para você executar:
@@ -39,15 +91,43 @@ git log --oneline
 
 ---
 
+## 🚫 Arquivos que NUNCA devem ser commitados
+
+O agente deve identificar e **recusar** incluir qualquer um dos arquivos abaixo em comandos `git add`. Se detectado, deve avisar o usuário em português e removê-lo da lista.
+
+**Arquivos de ambiente e segredos:**
+- `.env`, `.env.local`, `.env.development`, `.env.production`, `.env.*`
+- `*.pem`, `*.key`, `*.p12`, `*.pfx`, `*.cer`
+- `*secret*`, `*password*`, `*token*` (em nomes de arquivo)
+- `credentials.json`, `service-account.json`, `*.credentials`
+
+**Dependências e build:**
+- `node_modules/`, `vendor/`, `.venv/`, `__pycache__/`
+- `dist/`, `build/`, `.next/`, `out/`
+- `*.log`, `*.tmp`, `*.cache`
+
+**Sistema operacional e editor:**
+- `.DS_Store`, `Thumbs.db`
+- `.vscode/settings.json` (a menos que seja intencional para o projeto)
+- `*.swp`, `*.swo`
+
+> ⚠️ **Regra crítica:** se o usuário pedir `git add .` e houver arquivos sensíveis no diretório, o agente deve **listar os arquivos problemáticos**, avisar o risco e gerar o comando com os arquivos seguros de forma **explícita e individual**, nunca usando `git add .` nesses casos.
+
+---
+
 ## 📐 Como o agente analisa e gera os commits
 
 Quando você pedir ajuda para commitar, o agente irá:
 
-1. **Analisar as alterações** com base no contexto do arquivo aberto, diff visível ou descrição que você fornecer.
-2. **Identificar o tipo** de alteração realizada (veja tabela abaixo).
-3. **Definir o escopo** com base no módulo, pasta ou funcionalidade afetada (quando aplicável).
-4. **Redigir a mensagem** em inglês, no imperativo, curta e objetiva.
-5. **Gerar o bloco de comandos** pronto para ser colado no terminal.
+1. **Verificar a segurança** — checar se há arquivos sensíveis ou proibidos no escopo antes de qualquer coisa.
+2. **Confirmar o escopo com você** — perguntar em português quais arquivos ou funcionalidades devem entrar no commit, especialmente se houver múltiplas alterações não relacionadas.
+3. **Analisar as alterações** com base no contexto do arquivo aberto, diff visível ou descrição que você fornecer.
+4. **Identificar o tipo** de alteração realizada (veja tabela abaixo).
+5. **Definir o escopo** com base no módulo, pasta ou funcionalidade afetada (quando aplicável).
+6. **Redigir a mensagem** em inglês, no imperativo, curta e objetiva.
+7. **Gerar o bloco de comandos** pronto para ser colado no terminal.
+
+> 💡 **Comportamento esperado:** o agente nunca deve assumir que "tudo" deve ser commitado junto. Se houver arquivos de naturezas diferentes modificados (ex: um arquivo de instrução `.md` e um arquivo de código), ele deve sugerir commits separados e perguntar qual fazer primeiro.
 
 ---
 
@@ -144,4 +224,4 @@ Você pode dizer coisas como:
 - _"Faz um commit semântico para essa refatoração"_
 - _"Quero commitar tudo, o que você sugere?"_
 
-O agente irá responder em **português**, entender o contexto e gerar o **bloco de comandos em inglês** pronto para uso no terminal..
+O agente irá responder em **português**, entender o contexto e gerar o **bloco de comandos em inglês** pronto para uso no terminal.
