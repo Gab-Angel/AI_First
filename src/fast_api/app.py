@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 from src.db.tables import create_tables
-from src.db.checkpointer import setup_checkpointer
+from src.db.checkpointer import setup_checkpointer, cleanup_old_checkpoints, cleanup_inactive_threads
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from src.evo.client import EvolutionAPI
@@ -8,6 +8,7 @@ from src.agent.audio_transcription import audio_transcription
 from src.db.crud import PostgreSQL
 from src.redis.buffer import adicionar_ao_buffer, iniciar_ouvinte_background
 from src.redis.rq import enqueue_agent_processing
+from apscheduler.schedulers.background import BackgroundScheduler
 
 
 async def processar_mensagens_agrupadas(numero: str, texto_final: str):
@@ -33,8 +34,27 @@ async def lifespan(app: FastAPI):
     iniciar_ouvinte_background(processar_mensagens_agrupadas)
     print('✅ Sistema de buffer pronto!\n')
 
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(
+        cleanup_old_checkpoints,
+        trigger="interval",
+        days=30,
+        id="cleanup_checkpoints",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        cleanup_inactive_threads,
+        trigger="interval",
+        days=30,
+        id="cleanup_inactive_threads",
+        replace_existing=True,
+    )
+    scheduler.start()
+    print("🟢 Scheduler de limpeza de checkpoints ativo (mensal)!")
+
     yield
 
+    scheduler.shutdown(wait=False)
     print('🛑 Encerrando aplicação...')
 
 

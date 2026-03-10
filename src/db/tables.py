@@ -12,6 +12,7 @@ def create_tables(retries=10, delay=3):
             sql = """
             CREATE EXTENSION IF NOT EXISTS vector;
             CREATE EXTENSION IF NOT EXISTS pgcrypto;
+            CREATE EXTENSION IF NOT EXISTS unaccent;
 
             CREATE TABLE IF NOT EXISTS users (
                 phone_number VARCHAR(20) PRIMARY KEY,

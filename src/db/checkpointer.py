@@ -32,58 +32,61 @@ def setup_checkpointer():
         print("✅ Tabelas do checkpointer criadas com sucesso!")
 
 
-def cleanup_checkpointer(days: int = 30):
+def cleanup_old_checkpoints(keep: int = 1):
     """
-    Remove checkpoints de threads sem atividade nos últimos N dias.
-    Limpa em cascata: checkpoints → checkpoint_blobs → checkpoint_writes.
+    Para cada thread_id, mantém apenas os N checkpoints mais recentes
+    e deleta o restante em cascata. Roda VACUUM após a limpeza para
+    recuperar espaço em disco.
 
-    Recomendado: rodar periodicamente via cron ou agendador.
+    Rodar mensalmente via APScheduler.
 
     Args:
-        days: Dias de inatividade para considerar o thread expirado (padrão: 30)
+        keep: Número de checkpoints a preservar por thread (padrão: 1)
     """
     conn = get_vector_conn()
     cursor = conn.cursor()
 
     try:
-        # Identifica threads expirados
         cursor.execute(
             """
-            SELECT DISTINCT thread_id
-            FROM checkpoints
-            WHERE ts < NOW() - INTERVAL '%s days'
+            SELECT checkpoint_id
+            FROM (
+                SELECT checkpoint_id,
+                       ROW_NUMBER() OVER (PARTITION BY thread_id ORDER BY checkpoint_id DESC) AS rn
+                FROM checkpoints
+            ) ranked
+            WHERE rn > %s
             """,
-            (days,)
+            (keep,)
         )
-        threads = [row['thread_id'] for row in cursor.fetchall()]
+        rows = cursor.fetchall()
+        ids_to_delete = [row["checkpoint_id"] for row in rows]
 
-        if not threads:
-            print(f"✅ Nenhum checkpoint com mais de {days} dias encontrado.")
+        if not ids_to_delete:
+            print(f"✅ Nenhum checkpoint elegível para limpeza (keep={keep}).")
             return
 
-        # Remove em cascata pelas 3 tabelas
         cursor.execute(
-            "DELETE FROM checkpoint_writes WHERE thread_id = ANY(%s)",
-            (threads,)
+            "DELETE FROM checkpoint_writes WHERE checkpoint_id = ANY(%s)",
+            (ids_to_delete,)
         )
         writes_deleted = cursor.rowcount
 
         cursor.execute(
-            "DELETE FROM checkpoint_blobs WHERE thread_id = ANY(%s)",
-            (threads,)
+            "DELETE FROM checkpoint_blobs WHERE version = ANY(%s)",
+            (ids_to_delete,)
         )
         blobs_deleted = cursor.rowcount
 
         cursor.execute(
-            "DELETE FROM checkpoints WHERE thread_id = ANY(%s)",
-            (threads,)
+            "DELETE FROM checkpoints WHERE checkpoint_id = ANY(%s)",
+            (ids_to_delete,)
         )
         checkpoints_deleted = cursor.rowcount
 
         conn.commit()
 
         print(f"🗑️  Limpeza de checkpoints concluída:")
-        print(f"   • Threads removidos:     {len(threads)}")
         print(f"   • Checkpoints deletados: {checkpoints_deleted}")
         print(f"   • Blobs deletados:       {blobs_deleted}")
         print(f"   • Writes deletados:      {writes_deleted}")
@@ -95,3 +98,106 @@ def cleanup_checkpointer(days: int = 30):
     finally:
         cursor.close()
         conn.close()
+
+    # VACUUM fora da transação — recupera espaço físico em disco
+    vacuum_conn = get_vector_conn()
+    vacuum_conn.autocommit = True
+    vacuum_cursor = vacuum_conn.cursor()
+    try:
+        print("🧹 Rodando VACUUM nas tabelas de checkpoint...")
+        vacuum_cursor.execute("VACUUM FULL checkpoints")
+        vacuum_cursor.execute("VACUUM FULL checkpoint_writes")
+        vacuum_cursor.execute("VACUUM FULL checkpoint_blobs")
+        print("✅ VACUUM concluído.")
+    except Exception as e:
+        print(f"❌ Erro no VACUUM: {e}")
+    finally:
+        vacuum_cursor.close()
+        vacuum_conn.close()
+
+
+def cleanup_inactive_threads(days: int = 90):
+    """
+    Deleta o thread completo (checkpoints + blobs + writes) de pacientes
+    que não enviaram mensagem nos últimos N dias, usando chat.created_at
+    como referência de inatividade.
+
+    Isso garante que blobs também sejam removidos, controlando o crescimento
+    de longo prazo do banco.
+
+    Rodar mensalmente via APScheduler junto com cleanup_old_checkpoints.
+
+    Args:
+        days: Dias de inatividade para considerar o thread expirado (padrão: 90)
+    """
+    conn = get_vector_conn()
+    cursor = conn.cursor()
+
+    try:
+        # Busca session_ids sem atividade no chat nos últimos N dias
+        cursor.execute(
+            """
+            SELECT DISTINCT session_id
+            FROM chat
+            WHERE session_id NOT IN (
+                SELECT DISTINCT session_id
+                FROM chat
+                WHERE created_at >= NOW() - INTERVAL '%s days'
+            )
+            """ % days
+        )
+        inactive = [row["session_id"] for row in cursor.fetchall()]
+
+        if not inactive:
+            print(f"✅ Nenhum thread inativo há mais de {days} dias.")
+            return
+
+        cursor.execute(
+            "DELETE FROM checkpoint_writes WHERE thread_id = ANY(%s)",
+            (inactive,)
+        )
+        writes_deleted = cursor.rowcount
+
+        cursor.execute(
+            "DELETE FROM checkpoint_blobs WHERE thread_id = ANY(%s)",
+            (inactive,)
+        )
+        blobs_deleted = cursor.rowcount
+
+        cursor.execute(
+            "DELETE FROM checkpoints WHERE thread_id = ANY(%s)",
+            (inactive,)
+        )
+        checkpoints_deleted = cursor.rowcount
+
+        conn.commit()
+
+        print(f"🗑️  Limpeza de threads inativos concluída:")
+        print(f"   • Threads inativos:      {len(inactive)}")
+        print(f"   • Checkpoints deletados: {checkpoints_deleted}")
+        print(f"   • Blobs deletados:       {blobs_deleted}")
+        print(f"   • Writes deletados:      {writes_deleted}")
+
+    except Exception as e:
+        conn.rollback()
+        print(f"❌ Erro ao limpar threads inativos: {e}")
+
+    finally:
+        cursor.close()
+        conn.close()
+
+    # VACUUM após deleção de threads completos
+    vacuum_conn = get_vector_conn()
+    vacuum_conn.autocommit = True
+    vacuum_cursor = vacuum_conn.cursor()
+    try:
+        print("🧹 Rodando VACUUM nas tabelas de checkpoint...")
+        vacuum_cursor.execute("VACUUM FULL checkpoints")
+        vacuum_cursor.execute("VACUUM FULL checkpoint_writes")
+        vacuum_cursor.execute("VACUUM FULL checkpoint_blobs")
+        print("✅ VACUUM concluído.")
+    except Exception as e:
+        print(f"❌ Erro no VACUUM: {e}")
+    finally:
+        vacuum_cursor.close()
+        vacuum_conn.close()

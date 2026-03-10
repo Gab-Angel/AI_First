@@ -189,17 +189,22 @@ class Tools:
                 SELECT id, name, calendar_id
                 FROM doctor_rules
                 WHERE active = true
-                  AND EXISTS (
+                AND EXISTS (
                     SELECT 1 FROM jsonb_array_elements(procedures) AS p
-                    WHERE lower(p->>'nome') = lower(%s)
-                  )
+                    WHERE unaccent(lower(p->>'nome')) = unaccent(lower(%s))
+                )
             """
-            
+
             params = [procedimento]
-            
+
             if convenio:
-                query += " AND insurances @> %s::jsonb"
-                params.append(json.dumps([convenio.lower()]))
+                query += """
+                    AND EXISTS (
+                        SELECT 1 FROM jsonb_array_elements_text(insurances) AS ins
+                        WHERE unaccent(lower(ins)) = unaccent(lower(%s))
+                    )
+                """
+                params.append(convenio)
             
             cursor.execute(query, params)
             doutores = cursor.fetchall()
