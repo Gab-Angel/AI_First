@@ -94,15 +94,34 @@ def create_tables(retries=10, delay=3):
                 calendar_id VARCHAR(255) NOT NULL,
                 active BOOLEAN NOT NULL DEFAULT TRUE,
                 procedures JSONB NOT NULL,
-                duration INTEGER NOT NULL, 
+                duration INTEGER NOT NULL,
                 available_weekdays JSONB NOT NULL,
-                working_hours JSONB NOT NULL,  
+                working_hours JSONB NOT NULL,
                 insurances JSONB,
                 restrictions JSONB,
                 created_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'America/Sao_Paulo'),
                 updated_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'America/Sao_Paulo')
             );
 
+            -- ─── Admin Users ──────────────────────────────────────────────────────────
+            CREATE TABLE IF NOT EXISTS admin_users (
+                id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                name       TEXT NOT NULL,
+                email      TEXT NOT NULL UNIQUE,
+                password   TEXT NOT NULL,
+                active     BOOLEAN NOT NULL DEFAULT TRUE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_admin_users_email ON admin_users (email);
+            -- Seed: admin padrão (email: admin@gmail.com / senha: admin123456)
+            -- Inserido apenas se não existir nenhum admin cadastrado
+            INSERT INTO admin_users (name, email, password)
+            SELECT 'Admin', 'admin@gmail.com', '$2b$12$HOUqMk8.ASISEdEwzqp1J./zBwQ/kX94kH95sAEz73qKQGdKFUGU.'
+            WHERE NOT EXISTS (SELECT 1 FROM admin_users);
+
+            -- ─── Funções e Triggers ───────────────────────────────────────────────────
             CREATE OR REPLACE FUNCTION update_updated_at_column()
             RETURNS TRIGGER AS $$
             BEGIN
@@ -111,13 +130,25 @@ def create_tables(retries=10, delay=3):
             END;
             $$ language 'plpgsql';
 
-            DROP TRIGGER IF EXISTS update_doctor_rules_updated_at ON doctor_rules;
+            CREATE OR REPLACE FUNCTION set_updated_at()
+            RETURNS TRIGGER AS $$
+            BEGIN
+                NEW.updated_at = NOW();
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;
 
+            DROP TRIGGER IF EXISTS update_doctor_rules_updated_at ON doctor_rules;
             CREATE TRIGGER update_doctor_rules_updated_at
             BEFORE UPDATE ON doctor_rules
-            FOR EACH ROW
-            EXECUTE FUNCTION update_updated_at_column();
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+            DROP TRIGGER IF EXISTS admin_users_updated_at ON admin_users;
+            CREATE TRIGGER admin_users_updated_at
+            BEFORE UPDATE ON admin_users
+            FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+            -- ─── Índices ──────────────────────────────────────────────────────────────
             CREATE INDEX IF NOT EXISTS calendar_events_user_idx
             ON calendar_events (user_number);
 
