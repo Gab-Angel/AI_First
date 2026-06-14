@@ -1,6 +1,7 @@
 import os 
 from dotenv import load_dotenv
 from langchain_cerebras import ChatCerebras
+from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, ToolMessage
 from typing import List, Optional
 
@@ -8,17 +9,17 @@ load_dotenv()
 
 MAX_MESSAGES = 20
 
-llm = ChatCerebras(
-    api_key=os.getenv('CEREBRAS_API_KEY'),
-    model=os.getenv('CEREBRAS_MODEL'),
-    temperature=0
-)
-
-# llm = ChatOpenAI(
-#     api_key=os.getenv('OPENAI_API_KEY'),
-#     model=os.getenv("OPENAI_MODEL", "gpt-4.1"),
-#     temperature=0,
+# llm = ChatCerebras(
+#     api_key=os.getenv('CEREBRAS_API_KEY'),
+#     model=os.getenv('CEREBRAS_MODEL'),
+#     temperature=0
 # )
+
+llm = ChatOpenAI(
+    api_key=os.getenv('OPENAI_API_KEY'),
+    model=os.getenv("OPENAI_MODEL", "gpt-4.1"),
+    temperature=0,
+)
 
 class Agent:
     def __init__(
@@ -38,10 +39,7 @@ class Agent:
     def __call__(self, state):
         print(f'🤖 Agente {self.name} pensando...')
 
-        context_parts = [
-            provider(state)
-            for provider in self.context_providers
-        ]
+        context_parts = [provider(state) for provider in self.context_providers]
 
         context_text = "\n".join(context_parts)
 

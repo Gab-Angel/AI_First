@@ -123,10 +123,7 @@ class Tools:
             return "Nenhuma informação encontrada."
         
         # Formata resposta
-        contexto = "\n\n".join([
-            f"[{r['category']}] {r['content']}"
-            for r in results
-        ])
+        contexto = "\n\n".join([f"[{r['category']}] {r['content']}" for r in results])
         
         return f"Informações encontradas:\n\n{contexto}"
     
